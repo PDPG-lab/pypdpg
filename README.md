@@ -33,16 +33,18 @@ pdpg.activate("orga.key")
 result = pdpg.load("result.enc").decrypt()
 ```
 
-## What works, what can't, what's coming
+## What drops in, what needs a rewrite, what's coming
 
 | | |
 |---|---|
-| ✅ **works today** | `+ - * /scalar` · `@` · `dot` · `sum` · `mean` · `square` · `**n` · `pdpg.approx.sigmoid` · column select `X[:, j]` · save/load · `np.load` drop-in |
-| ❌ **impossible by design** | anything that hands *this* party a plaintext: `bool()` and branching on encrypted data · `np.asarray` · peeking at values · decrypting without the key. No engine upgrade changes this — it *is* the security guarantee |
-| 🔜 **engine upgrades unlock** | encrypted comparisons and `max`/`sort` (programmable bootstrapping / sign approximation) · ciphertext division (iterative reciprocal) · `exp`/`log`/`sqrt` (polynomial circuits) · unlimited depth via bootstrapping · encrypted@encrypted matmul · GPU acceleration. Results stay encrypted — computable, never readable |
+| ✅ **drop in now** | existing numpy code runs unchanged: `+ - * /scalar` · `@` · `dot` · `sum` · `mean` · `square` · `**n` · `pdpg.approx.sigmoid` · column select `X[:, j]` · save/load · `np.load` |
+| 🔁 **needs a rewrite** | data-dependent logic runs today, written branchless — the same discipline as constant-time crypto code: `if/else` → `gate*b + (1-gate)*c` · thresholds → `sigmoid` gates · row filtering → full-shape masking (a filtered row *count* would leak) · `/ cipher` → multiply by a reciprocal |
+| 🔜 **waiting on the engine** | exact comparisons and `max`/`sort` (programmable bootstrapping / sign circuits) · ciphertext division · high-precision `exp`/`log`/`sqrt` · unlimited depth via bootstrapping · encrypted@encrypted matmul · GPU acceleration. When the engine lands them, they drop in — your code doesn't change |
 
-Today every unsupported op raises a teaching error explaining why and what to
-do instead. The engine improves; your code doesn't.
+And one thing that fits no bucket, ever: *this* party reading the data —
+`bool()`, `np.asarray`, peeking at values, decrypting without the key. That's
+not a roadmap item; that's the security guarantee. Every refused operation
+raises a teaching error pointing you at the right bucket.
 
 ### Control flow: rewrite, don't branch
 
