@@ -2,8 +2,10 @@
 
 Duck-typed on fitted attributes (coef_, intercept_, mean_, scale_, steps),
 so scikit-learn is not a dependency of pypdpg — any object exposing the
-same attributes works. The intended split: the data controller fits on
-plaintext where the data lives; the data processor predicts blind.
+same attributes works. The intended split: the model owner (typically the
+data processor — e.g. a credit-score or fraud-score provider) fits on its
+own plaintext training data and keeps the model; inference runs blind on
+the controller's ciphertext.
 """
 
 from __future__ import annotations

@@ -90,15 +90,20 @@ rewriting rules.
 
 Fitted linear models run on encrypted arrays through `pdpg.sklearn.wrap`,
 which reads the learned parameters and replays them as encrypted arithmetic.
-scikit-learn is not a dependency of pypdpg and never touches the ciphertext:
+scikit-learn is not a dependency of pypdpg and never touches the ciphertext.
+
+The typical setup: the processor is a score provider that owns the model and
+fitted it on its own historical data; the controller sends only encrypted
+user records. The model stays in the clear (it's the provider's), the data
+never is:
 
 ```python
-# data controller, plaintext side: fit as usual
-pipe = make_pipeline(StandardScaler(), LogisticRegression()).fit(X_train, y_train)
+# score provider (data processor): your model, fitted on your own data
+pipe = make_pipeline(StandardScaler(), LogisticRegression()).fit(X_hist, y_hist)
 
-# data processor, ciphertext side: one extra line
+# same provider, scoring a client's ciphertext: one extra line
 model = pdpg.sklearn.wrap(pipe)
-proba = model.predict_proba(X_enc)      # encrypted P(class 1)
+proba = model.predict_proba(X_enc)      # encrypted P(class 1), back to the client
 ```
 
 Supported: linear regressors including multi-output (`LinearRegression`,

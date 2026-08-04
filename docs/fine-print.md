@@ -54,3 +54,10 @@ context reveals nothing usable. An actively malicious processor could return
 wrong results (FHE alone doesn't give verifiability) or refuse to compute;
 result *shape* and file sizes are visible by design. Key custody is the whole
 game: `controller.key` never travels.
+
+Note the asymmetry: FHE protects the controller's **data** from the
+processor; it does not protect the processor's **model** from the
+controller. The controller decrypts the scores, and decrypted scores permit
+standard model extraction — a linear model can be recovered exactly from
+d+1 probing queries. This is the same exposure any scoring API has, and it
+is a contract matter, not a cryptographic one.
