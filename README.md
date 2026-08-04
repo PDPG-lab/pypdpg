@@ -108,11 +108,13 @@ proba = model.predict_proba(X_enc)      # encrypted P(class 1), back to the clie
 
 Supported: linear regressors including multi-output (`LinearRegression`,
 `Ridge`, `Lasso`, …), binary linear classifiers (`decision_function`,
-`predict_proba` via the sigmoid approximation), `StandardScaler`, and
-`Pipeline`s of those. A scaler + logistic pipeline uses exactly the full
-multiplicative depth budget. `predict()` on a classifier raises a teaching
-error: hard labels are a threshold decision, and thresholds belong to the
-key holder.
+`predict_proba` via the sigmoid approximation), `StandardScaler`, `KMeans`
+(`transform_squared` — encrypted squared distances to every centroid; same
+ranking as `transform`, square root after decryption), and `Pipeline`s of
+those. A scaler + logistic pipeline uses exactly the full multiplicative
+depth budget. `predict()` raises a teaching error in every wrapper: hard
+labels and nearest-centroid picks are decisions, and decisions belong to
+the key holder.
 
 ## Demo
 

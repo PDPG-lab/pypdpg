@@ -96,6 +96,38 @@ def test_pipeline_scaler_logistic_proba(ctx, encX):
     assert np.allclose(got, expected, atol=ATOL)
 
 
+def test_kmeans_transform_squared(ctx, encX):
+    from sklearn.cluster import KMeans
+
+    model = KMeans(n_clusters=3, random_state=0, n_init=10).fit(X)
+    got = pdpg.sklearn.wrap(model).transform_squared(encX).decrypt()
+    assert got.shape == (60, 3)
+    assert np.allclose(got, model.transform(X) ** 2, atol=ATOL)
+
+
+def test_kmeans_pipeline(ctx, encX):
+    from sklearn.cluster import KMeans
+
+    pipe = make_pipeline(
+        StandardScaler(), KMeans(n_clusters=3, random_state=0, n_init=10)
+    ).fit(X)
+    got = pdpg.sklearn.wrap(pipe).transform_squared(encX).decrypt()
+    expected = pipe.named_steps["kmeans"].transform(
+        pipe.named_steps["standardscaler"].transform(X)
+    ) ** 2
+    assert np.allclose(got, expected, atol=ATOL)
+
+
+def test_kmeans_transform_and_predict_raise(encX):
+    from sklearn.cluster import KMeans
+
+    wrapped = pdpg.sklearn.wrap(KMeans(n_clusters=2, random_state=0, n_init=10).fit(X))
+    with pytest.raises(EncryptedOperationError, match="transform_squared"):
+        wrapped.transform(encX)
+    with pytest.raises(EncryptedOperationError, match="Why:"):
+        wrapped.predict(encX)
+
+
 def test_multiclass_rejected():
     y3 = rng.integers(0, 3, size=60)
     model = LogisticRegression().fit(X, y3)

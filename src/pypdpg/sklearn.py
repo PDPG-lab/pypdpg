@@ -25,6 +25,8 @@ def wrap(model):
     """
     if hasattr(model, "steps"):
         return _EncryptedPipeline(model)
+    if hasattr(model, "cluster_centers_"):
+        return _EncryptedKMeans(model)
     if hasattr(model, "scale_") or hasattr(model, "mean_"):
         return _EncryptedScaler(model)
     if hasattr(model, "coef_"):
@@ -79,6 +81,51 @@ class _EncryptedClassifier:
         )
 
 
+class _EncryptedKMeans:
+    def __init__(self, model):
+        self._centers = np.asarray(model.cluster_centers_, dtype=np.float64)
+
+    def transform_squared(self, X: CipherArray) -> CipherArray:
+        """Squared euclidean distance to every centroid, shape (N, k).
+
+        Equals ``model.transform(X) ** 2``. Squaring is monotonic, so the
+        ranking of centroids is identical; the key holder can take the
+        square root after decryption. Costs one depth level:
+        ``|x|^2 - 2 x.c + |c|^2`` is a square and a plain multiply on
+        parallel branches.
+        """
+        if X.ndim != 2:
+            raise ValueError("KMeans distances need a 2-D CipherArray.")
+        squares = X.square()
+        row_norm = squares[:, 0]
+        for j in range(1, squares.shape[1]):
+            row_norm = row_norm + squares[:, j]
+        cross = X @ (-2.0 * self._centers.T)          # (N, k), plain matmul
+        center_norms = (self._centers**2).sum(axis=1)  # (k,) plain
+        columns = [
+            (cross[:, j] + row_norm + float(center_norms[j]))._vectors[0]
+            for j in range(self._centers.shape[0])
+        ]
+        return CipherArray(
+            columns, (X.shape[0], len(columns)), "slots", X.context
+        )
+
+    def transform(self, X):
+        raise errors.make(
+            "E-TRANSCEND",
+            "KMeans.transform() takes a square root — impossible on CKKS "
+            "ciphertexts. Use .transform_squared(): same centroid ranking; "
+            "take the square root after decryption.",
+        )
+
+    def predict(self, X):
+        raise errors.make(
+            "E-COMPARE",
+            "KMeans.predict() — choosing the nearest centroid needs argmin, "
+            "impossible on CKKS ciphertexts.",
+        )
+
+
 class _EncryptedScaler:
     def __init__(self, model):
         self._mean = getattr(model, "mean_", None)
@@ -114,3 +161,6 @@ class _EncryptedPipeline:
 
     def predict_proba(self, X):
         return self._final.predict_proba(self._apply(X))
+
+    def transform_squared(self, X):
+        return self._final.transform_squared(self._apply(X))
