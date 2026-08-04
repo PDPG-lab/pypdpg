@@ -1,6 +1,6 @@
 # pypdpg
 
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/PDPG-lab/pypdpg/blob/main/demo/demo.ipynb)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/PDPG-lab/pypdpg/blob/main/demo/getting_started.ipynb)
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License: PDPG Community](https://img.shields.io/badge/license-PDPG%20Community-blueviolet)
 
@@ -147,11 +147,17 @@ pdpg decrypt result.enc -c keys/controller.key -o result.csv
 file: the shape, the column names, the size. Decrypting with the public
 context prints the custody teaching error and exits nonzero.
 
-## Demo
+## Notebooks
 
-[demo/demo.ipynb](demo/demo.ipynb) walks through the full two-party flow —
-encryption, blind scoring, decryption, and a section of attempted leaks —
-and runs top-to-bottom on a fresh Colab runtime.
+Each runs standalone, top-to-bottom, on a fresh Colab runtime.
+
+| notebook | shows |
+|---|---|
+| [getting_started](https://colab.research.google.com/github/PDPG-lab/pypdpg/blob/main/demo/getting_started.ipynb) | the two-party flow end to end: encrypt a DataFrame, score blind, decrypt |
+| [01 · sklearn models](https://colab.research.google.com/github/PDPG-lab/pypdpg/blob/main/demo/cookbook/01_sklearn_models.ipynb) | wrapped pipelines, encrypted probabilities, KMeans segmentation |
+| [02 · encrypted dataframes](https://colab.research.google.com/github/PDPG-lab/pypdpg/blob/main/demo/cookbook/02_encrypted_dataframes.ipynb) | named columns, computed columns, labeled aggregates |
+| [03 · branchless logic](https://colab.research.google.com/github/PDPG-lab/pypdpg/blob/main/demo/cookbook/03_branchless_logic.ipynb) | the refusals tour, then the constant-time rewrite patterns |
+| [04 · CLI workflow](https://colab.research.google.com/github/PDPG-lab/pypdpg/blob/main/demo/cookbook/04_cli_workflow.ipynb) | keygen / encrypt / inspect / decrypt as shell commands |
 
 ## Documentation
 
