@@ -49,7 +49,7 @@ load exactly as before, `pdpg.uninstall()` restores the original.
 
 | | |
 |---|---|
-| Works unchanged | `+ - * /scalar` · `@` · `dot` · `sum` · `mean` · `square` · `**n` · `pdpg.approx.sigmoid` · column select `X[:, j]` · save/load · `np.load` |
+| Works unchanged | `+ - * /scalar` · `@` · `dot` · `sum` · `mean` · `square` · `**n` · `pdpg.approx.sigmoid` · column select `X[:, j]` · save/load · `np.load` · fitted scikit-learn linear models via `pdpg.sklearn.wrap` |
 | Requires rewriting | data-dependent logic, expressed branchless: `if/else` as `gate*b + (1-gate)*c` · thresholds via `sigmoid` gates · row filtering via full-shape masking · division by ciphertext via plain reciprocals |
 | Planned (engine-side) | exact comparisons, `max`/`sort` · ciphertext division · `exp`/`log`/`sqrt` · unlimited depth via bootstrapping · encrypted×encrypted matmul · GPU |
 
@@ -85,6 +85,29 @@ result = gate * b + (1 - gate) * c     # if x > 0: b else c
 Both branches are always evaluated, loops need fixed bounds, and result
 shapes cannot depend on data. See [docs/design.md](docs/design.md) for the
 rewriting rules.
+
+## scikit-learn models
+
+Fitted linear models run on encrypted arrays through `pdpg.sklearn.wrap`,
+which reads the learned parameters and replays them as encrypted arithmetic.
+scikit-learn is not a dependency of pypdpg and never touches the ciphertext:
+
+```python
+# data controller, plaintext side: fit as usual
+pipe = make_pipeline(StandardScaler(), LogisticRegression()).fit(X_train, y_train)
+
+# data processor, ciphertext side: one extra line
+model = pdpg.sklearn.wrap(pipe)
+proba = model.predict_proba(X_enc)      # encrypted P(class 1)
+```
+
+Supported: linear regressors including multi-output (`LinearRegression`,
+`Ridge`, `Lasso`, …), binary linear classifiers (`decision_function`,
+`predict_proba` via the sigmoid approximation), `StandardScaler`, and
+`Pipeline`s of those. A scaler + logistic pipeline uses exactly the full
+multiplicative depth budget. `predict()` on a classifier raises a teaching
+error: hard labels are a threshold decision, and thresholds belong to the
+key holder.
 
 ## Demo
 
