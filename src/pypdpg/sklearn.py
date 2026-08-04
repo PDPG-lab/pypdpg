@@ -14,6 +14,7 @@ import numpy as np
 
 from . import approx, errors
 from .core import CipherArray
+from .pandas import CipherFrame
 
 
 def wrap(model):
@@ -165,3 +166,110 @@ class _EncryptedPipeline:
 
     def transform_squared(self, X):
         return self._final.transform_squared(self._apply(X))
+
+
+# --- targeted runtime hooks -------------------------------------------------
+#
+# pdpg.sklearn.install() patches the *public* methods of exactly the
+# estimator classes wrap() supports, with a type gate at the top:
+# encrypted input routes into wrap() (same code, same teaching errors),
+# plain input calls the original, untouched. Opt-in, idempotent, and
+# reversible with uninstall().
+
+_PATCHED: dict = {}  # (cls, name) -> original entry from cls.__dict__, or None
+
+
+def _class_attr(cls, name):
+    """The raw class attribute (function or descriptor) through the MRO."""
+    for base in cls.__mro__:
+        if name in base.__dict__:
+            return base.__dict__[name]
+    raise AttributeError(name)
+
+
+def _as_cipher(X):
+    return X.values if isinstance(X, CipherFrame) else X
+
+
+def _gated(cls, name):
+    original = _class_attr(cls, name)
+
+    def method(self, X=None, *args, **kwargs):
+        if isinstance(X, (CipherArray, CipherFrame)):
+            if name == "fit":
+                raise errors.make(
+                    "E-COERCE",
+                    "fit() on encrypted data — training happens on "
+                    "plaintext, where the training data's owner sits; "
+                    "pypdpg runs inference only.",
+                )
+            return getattr(wrap(self), name)(_as_cipher(X))
+        return original.__get__(self, cls)(X, *args, **kwargs)
+
+    method.__name__ = name
+    method.__qualname__ = f"{cls.__name__}.{name}"
+    return method
+
+
+def _transform_squared(self, X):
+    """Squared distances to centroids; works on plain and encrypted input."""
+    if isinstance(X, (CipherArray, CipherFrame)):
+        return wrap(self).transform_squared(_as_cipher(X))
+    return self.transform(X) ** 2
+
+
+def _targets():
+    from sklearn.cluster import KMeans, MiniBatchKMeans
+    from sklearn.linear_model import (
+        ElasticNet,
+        Lasso,
+        LinearRegression,
+        LogisticRegression,
+        Ridge,
+    )
+    from sklearn.pipeline import Pipeline
+    from sklearn.preprocessing import StandardScaler
+
+    patched = [
+        (LinearRegression, ("fit", "predict")),
+        (Ridge, ("fit", "predict")),
+        (Lasso, ("fit", "predict")),
+        (ElasticNet, ("fit", "predict")),
+        (LogisticRegression, ("fit", "predict", "predict_proba", "decision_function")),
+        (StandardScaler, ("fit", "transform")),
+        (KMeans, ("fit", "transform", "predict")),
+        (MiniBatchKMeans, ("fit", "transform", "predict")),
+        (Pipeline, ("fit", "predict", "predict_proba", "decision_function", "transform")),
+    ]
+    added = (KMeans, MiniBatchKMeans, Pipeline)  # gain .transform_squared
+    return patched, added
+
+
+def install() -> None:
+    """Hook the supported scikit-learn estimators for encrypted inference.
+
+    After this, the same estimator objects accept plain arrays (original
+    behavior, byte for byte) and CipherArrays/CipherFrames (routed through
+    pdpg.sklearn.wrap). One line on the data processor's side.
+    """
+    if _PATCHED:
+        return  # already installed
+    patched, added = _targets()
+    for cls, names in patched:
+        for name in names:
+            _PATCHED[(cls, name)] = cls.__dict__.get(name)
+            setattr(cls, name, _gated(cls, name))
+    for cls in added:
+        _PATCHED[(cls, "transform_squared")] = cls.__dict__.get("transform_squared")
+        cls.transform_squared = _transform_squared
+
+
+def uninstall() -> None:
+    """Restore every hooked method exactly as it was."""
+    for (cls, name), original in _PATCHED.items():
+        if original is None:
+            if name in cls.__dict__:
+                delattr(cls, name)
+        else:
+            setattr(cls, name, original)
+    _PATCHED.clear()

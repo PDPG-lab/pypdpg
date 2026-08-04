@@ -65,6 +65,15 @@ plaintext), `__repr__` shows shape and key custody but never slot values,
 augmented assignment (`x += 3`) works through the ordinary binary dunders and
 stays encrypted.
 
+Beyond numpy's protocols, integration with other libraries uses **targeted
+runtime hooks**, never blanket patching: `pdpg.sklearn.install()` wraps the
+public methods of exactly the estimator classes the wrapper layer supports,
+each with a type gate — plain input calls the original method untouched,
+encrypted input routes into `wrap()` where the teaching errors live. Hooks
+are opt-in, idempotent, and reversible by identity (`uninstall()`). The
+design rule: a hook may route or refuse, never compute — so a missed path
+can only ever produce a loud error, not a silently wrong number.
+
 ## Branchless rewrites
 
 Data-dependent *control flow* needs a plaintext boolean — never available

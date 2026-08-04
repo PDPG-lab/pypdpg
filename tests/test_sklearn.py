@@ -128,6 +128,68 @@ def test_kmeans_transform_and_predict_raise(encX):
         wrapped.predict(encX)
 
 
+# ------------------------------------------------- targeted runtime hooks
+
+@pytest.fixture()
+def hooks():
+    pdpg.sklearn.install()
+    yield
+    pdpg.sklearn.uninstall()
+
+
+def test_uninstall_restores_identity():
+    from sklearn.linear_model import LinearRegression
+
+    original = LinearRegression.predict
+    pdpg.sklearn.install()
+    assert LinearRegression.predict is not original
+    pdpg.sklearn.install()  # idempotent
+    pdpg.sklearn.uninstall()
+    assert LinearRegression.predict is original
+
+
+def test_hooked_predict_cipher_and_plain(hooks, ctx, encX):
+    model = LinearRegression().fit(X, y_reg)
+    plain_before = model.predict(X)
+    enc_result = model.predict(encX)
+    assert isinstance(enc_result, pdpg.CipherArray)
+    assert np.allclose(enc_result.decrypt(), plain_before, atol=ATOL)
+    # plain path is untouched by the hook
+    assert np.array_equal(model.predict(X), plain_before)
+
+
+def test_hooked_pipeline_proba(hooks, ctx, encX):
+    pipe = make_pipeline(StandardScaler(), LogisticRegression(C=0.1)).fit(X, y_cls)
+    got = pipe.predict_proba(encX).decrypt()
+    expected = pdpg.approx.sigmoid(pipe.decision_function(X))
+    assert np.allclose(got, expected, atol=ATOL)
+    assert pipe.predict_proba(X).shape == (60, 2)  # plain path still sklearn's
+
+
+def test_hooked_fit_on_cipher_teaches(hooks, encX):
+    with pytest.raises(EncryptedOperationError, match="inference only"):
+        LinearRegression().fit(encX, y_reg)
+
+
+def test_hooked_kmeans_transform_squared_both_worlds(hooks, ctx, encX):
+    from sklearn.cluster import KMeans
+
+    km = KMeans(n_clusters=3, random_state=0, n_init=10).fit(X)
+    assert np.allclose(km.transform_squared(X), km.transform(X) ** 2)
+    got = km.transform_squared(encX).decrypt()
+    assert np.allclose(got, km.transform(X) ** 2, atol=ATOL)
+    with pytest.raises(EncryptedOperationError, match="transform_squared"):
+        km.transform(encX)
+
+
+def test_unhooked_estimator_still_refuses(hooks, encX):
+    from sklearn.ensemble import RandomForestRegressor
+
+    forest = RandomForestRegressor(n_estimators=3, random_state=0).fit(X, y_reg)
+    with pytest.raises(EncryptedOperationError, match="Why:"):
+        forest.predict(encX)
+
+
 def test_multiclass_rejected():
     y3 = rng.integers(0, 3, size=60)
     model = LogisticRegression().fit(X, y3)

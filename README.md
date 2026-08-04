@@ -142,10 +142,18 @@ never is:
 # score provider (data processor): your model, fitted on your own data
 pipe = make_pipeline(StandardScaler(), LogisticRegression()).fit(X_hist, y_hist)
 
-# same provider, scoring a client's ciphertext: one extra line
-model = pdpg.sklearn.wrap(pipe)
-proba = model.predict_proba(X_enc)      # encrypted P(class 1), back to the client
+# one line, and your own objects accept ciphertext as well as plaintext
+pdpg.sklearn.install()
+proba = pipe.predict_proba(X_enc)       # encrypted P(class 1), back to the client
 ```
+
+`install()` hooks only the supported estimator classes, with a type gate:
+plain inputs run the original methods untouched, encrypted inputs route
+through the wrapper layer, and `pdpg.sklearn.uninstall()` restores
+everything by identity. Calling `fit()` on ciphertext raises a teaching
+error (training happens on plaintext; the wrappers run inference only).
+Prefer zero magic? `pdpg.sklearn.wrap(pipe)` does the same thing
+explicitly, no hooks involved.
 
 Supported: linear regressors including multi-output (`LinearRegression`,
 `Ridge`, `Lasso`, …), binary linear classifiers (`decision_function`,
