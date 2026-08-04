@@ -62,7 +62,8 @@ If you are not a Qualified User — or you stop being one, for example because
 your revenue crosses the threshold — your use of the software requires an
 **Enterprise License** from the licensor.
 
-- Contact: **PDPG-lab**, via https://github.com/PDPG-lab
+- Contact: **PDPG-lab** — https://pdpglab.xyz, or via
+  https://github.com/PDPG-lab
 - If you stop qualifying, you have a **grace period of 60 days** from the end
   of the financial period in which you crossed the threshold to obtain an
   Enterprise License or cease use. We'd rather talk than litigate — reach out.

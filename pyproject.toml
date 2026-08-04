@@ -13,7 +13,8 @@ authors = [{ name = "PDPG-lab" }]
 dependencies = ["numpy", "tenseal"]
 
 [project.urls]
-Homepage = "https://github.com/PDPG-lab/pypdpg"
+Homepage = "https://pdpglab.xyz"
+Repository = "https://github.com/PDPG-lab/pypdpg"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pypdpg"]

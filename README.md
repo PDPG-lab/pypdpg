@@ -8,7 +8,8 @@
 encryption and ships it to a vendor. The vendor pip-installs this library, adds
 two lines, and their existing numpy pipeline runs unchanged — on ciphertext.
 Encrypted in, encrypted out, and only Org A holds the key that can read the
-result. Built on [TenSEAL](https://github.com/OpenMined/TenSEAL) (CKKS).
+result. Built on [TenSEAL](https://github.com/OpenMined/TenSEAL) (CKKS) by
+[PDPG-lab](https://pdpglab.xyz).
 
 ## Quickstart
 
@@ -106,5 +107,5 @@ must be free for the people protecting the public. It is free for individuals,
 education, research, non-profits, government and public-sector bodies, and any
 organization under **THB 50M** (Thai-registered) or **USD 1M** (elsewhere)
 annual revenue. Above that line, you're the reason we can afford to keep it
-free: [get in touch](https://github.com/PDPG-lab) for an enterprise
+free: [get in touch](https://pdpglab.xyz) for an enterprise
 license. (Not an OSI-approved open-source license, and we don't claim it is.)
