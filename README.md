@@ -13,8 +13,8 @@ the ciphertext with its ordinary code; the controller decrypts the result.
 pypdpg is building up encrypted execution for the common Python data stack,
 library by library — numpy at the core, with pandas and scikit-learn layers
 on top. Coverage is partial and growing; within each library, the supported
-subset is what CKKS can honestly do, and everything else refuses with an
-explanation. A [PDPG-lab](https://pdpglab.xyz) project.
+subset is what the active encryption backend can honestly do, and everything
+else refuses with an explanation. A [PDPG-lab](https://pdpglab.xyz) project.
 
 ## Library coverage
 
