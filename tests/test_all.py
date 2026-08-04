@@ -11,8 +11,18 @@ X_PLAIN = rng.normal(size=(50, 4))
 X1D_PLAIN = rng.uniform(-3, 3, size=50)
 W_VEC = rng.normal(size=4)
 W_MAT = rng.normal(size=(4, 2))
+COL = rng.normal(size=(50, 1))
+DIV_VEC = np.abs(rng.normal(size=4)) + 1.0  # safe denominators
 
 ATOL = 1e-2
+
+
+def oracle(ctx, plain, fn, atol=ATOL):
+    """encrypt -> fn -> decrypt must match fn on plain numpy."""
+    got = fn(pdpg.encrypt(plain, ctx)).decrypt()
+    expected = fn(np.array(plain))
+    assert got.shape == expected.shape
+    assert np.allclose(got, expected, atol=atol)
 
 
 @pytest.fixture(scope="session")
@@ -65,6 +75,112 @@ def test_too_many_rows_rejected(ctx):
 def test_3d_rejected(ctx):
     with pytest.raises(ValueError, match="ndim"):
         pdpg.encrypt(np.zeros((2, 2, 2)), ctx)
+
+
+# --------------------------------------------------------------- arithmetic
+
+def test_add_scalar(ctx):
+    oracle(ctx, X_PLAIN, lambda a: a + 2)
+
+
+def test_radd_scalar(ctx):
+    oracle(ctx, X_PLAIN, lambda a: 2 + a)
+
+
+def test_add_cipher_cipher(ctx):
+    enc = pdpg.encrypt(X_PLAIN, ctx)
+    assert np.allclose((enc + enc).decrypt(), X_PLAIN + X_PLAIN, atol=ATOL)
+
+
+def test_sub_cipher_cipher(ctx):
+    # two independent encryptions: same-object X - X would be an exactly-zero
+    # "transparent" ciphertext, which SEAL refuses to produce
+    a = pdpg.encrypt(X_PLAIN, ctx)
+    b = pdpg.encrypt(X_PLAIN, ctx)
+    assert np.allclose((a - b).decrypt(), np.zeros_like(X_PLAIN), atol=ATOL)
+
+
+def test_rsub_scalar(ctx):
+    oracle(ctx, X_PLAIN, lambda a: 5 - a)
+
+
+def test_mul_scalar(ctx):
+    oracle(ctx, X_PLAIN, lambda a: a * 3)
+
+
+def test_mul_cipher_cipher(ctx):
+    enc = pdpg.encrypt(X_PLAIN, ctx)
+    assert np.allclose((enc * enc).decrypt(), X_PLAIN * X_PLAIN, atol=ATOL)
+
+
+def test_mul_broadcast_row_vector(ctx):
+    # (N, d) * (d,) — one plain weight per column
+    oracle(ctx, X_PLAIN, lambda a: a * W_VEC)
+
+
+def test_rmul_broadcast_row_vector(ctx):
+    oracle(ctx, X_PLAIN, lambda a: W_VEC * a)
+
+
+def test_mul_broadcast_column(ctx):
+    # (N, d) * (N, 1) — one plain factor per row
+    oracle(ctx, X_PLAIN, lambda a: a * COL)
+
+
+def test_mul_same_shape_plain(ctx):
+    oracle(ctx, X_PLAIN, lambda a: a * (X_PLAIN + 1.0))
+
+
+def test_sub_broadcast_row_vector(ctx):
+    oracle(ctx, X_PLAIN, lambda a: a - W_VEC)
+
+
+def test_div_scalar(ctx):
+    oracle(ctx, X_PLAIN, lambda a: a / 2)
+
+
+def test_div_plain_vector(ctx):
+    oracle(ctx, X_PLAIN, lambda a: a / DIV_VEC)
+
+
+def test_neg(ctx):
+    oracle(ctx, X_PLAIN, lambda a: -a)
+
+
+def test_chained_expression(ctx):
+    oracle(ctx, X1D_PLAIN, lambda a: (a + 10) * 5)
+
+
+def test_augmented_assignment(ctx):
+    enc = pdpg.encrypt(X1D_PLAIN, ctx)
+    plain = X1D_PLAIN.copy()
+    enc += 3
+    plain += 3
+    enc *= 2
+    plain *= 2
+    assert isinstance(enc, pdpg.CipherArray)  # stayed encrypted
+    assert np.allclose(enc.decrypt(), plain, atol=ATOL)
+
+
+def test_np_ufunc_spellings(ctx):
+    enc = pdpg.encrypt(X1D_PLAIN, ctx)
+    assert np.allclose(np.add(enc, 1).decrypt(), X1D_PLAIN + 1, atol=ATOL)
+    assert np.allclose(
+        np.multiply(X1D_PLAIN, enc).decrypt(), X1D_PLAIN * X1D_PLAIN, atol=ATOL
+    )
+    assert np.allclose(
+        np.subtract(X1D_PLAIN, enc).decrypt(), np.zeros_like(X1D_PLAIN), atol=ATOL
+    )
+    assert np.allclose(np.negative(enc).decrypt(), -X1D_PLAIN, atol=ATOL)
+
+
+def test_mismatched_context_rejected(ctx):
+    # a second context has a different fingerprint; combining must fail
+    ctx2 = pdpg.Context.create()
+    a = pdpg.encrypt(X1D_PLAIN, ctx)
+    b = pdpg.encrypt(X1D_PLAIN, ctx2)
+    with pytest.raises(ValueError, match="context"):
+        a + b
 
 
 # ------------------------------------------------------------------ custody
