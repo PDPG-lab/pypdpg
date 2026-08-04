@@ -38,10 +38,11 @@ result = pdpg.load("result.enc").decrypt()
 | | |
 |---|---|
 | ✅ **works today** | `+ - * /scalar` · `@` · `dot` · `sum` · `mean` · `square` · `**n` · `pdpg.approx.sigmoid` · column select `X[:, j]` · save/load · `np.load` drop-in |
-| ❌ **impossible without interaction** | comparisons · `sort`/`argmax` · `exp`/`log`/`sqrt` · division by ciphertext · row indexing · `bool` — anything that must *read* a value. Each raises a teaching error explaining why, and what to do instead |
-| 🔜 **engine-side, code-side nothing** | bootstrapping (unlimited depth) · encrypted@encrypted matmul · GPU acceleration · smaller ciphertexts |
+| ❌ **impossible by design** | anything that hands *this* party a plaintext: `bool()` and branching on encrypted data · `np.asarray` · peeking at values · decrypting without the key. No engine upgrade changes this — it *is* the security guarantee |
+| 🔜 **engine upgrades unlock** | encrypted comparisons and `max`/`sort` (programmable bootstrapping / sign approximation) · ciphertext division (iterative reciprocal) · `exp`/`log`/`sqrt` (polynomial circuits) · unlimited depth via bootstrapping · encrypted@encrypted matmul · GPU acceleration. Results stay encrypted — computable, never readable |
 
-The engine improves; your code doesn't.
+Today every unsupported op raises a teaching error explaining why and what to
+do instead. The engine improves; your code doesn't.
 
 ## What this is not
 
