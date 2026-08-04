@@ -6,9 +6,8 @@
 
 Run numpy code on CKKS-encrypted arrays. The data owner encrypts and keeps
 the secret key; another party computes on the ciphertext using ordinary numpy
-operations; the owner decrypts the result. Built on
-[TenSEAL](https://github.com/OpenMined/TenSEAL), developed by
-[PDPG-lab](https://pdpglab.xyz).
+operations; the owner decrypts the result. A
+[PDPG-lab](https://pdpglab.xyz) project.
 
 ## Installation
 
@@ -16,8 +15,8 @@ operations; the owner decrypts the result. Built on
 pip install git+https://github.com/PDPG-lab/pypdpg
 ```
 
-Python 3.10+. TenSEAL is installed as a dependency (wheels available for
-Linux x86_64, macOS arm64, and Windows).
+Python 3.10+. All dependencies install as prebuilt wheels on Linux x86_64,
+macOS arm64, and Windows.
 
 ## Usage
 
@@ -102,12 +101,12 @@ and runs top-to-bottom on a fresh Colab runtime.
 
 ## Related projects
 
-- [TenSEAL](https://github.com/OpenMined/TenSEAL) — the underlying CKKS
-  engine.
 - [Zama Concrete](https://github.com/zama-ai/concrete) — ahead-of-time
   circuit compilation; pypdpg dispatches at runtime instead.
 - [CuPy](https://cupy.dev/) / [Dask](https://www.dask.org/) — duck-typed
   array libraries; pypdpg implements the same numpy dispatch protocols.
+- [TenSEAL](https://github.com/OpenMined/TenSEAL) — the CKKS implementation
+  pypdpg currently uses as its backend.
 
 ## Limitations
 
@@ -127,3 +126,7 @@ individuals, education, research, non-profits, the public sector, and
 organizations under THB 50M (Thai-registered) / USD 1M (elsewhere) annual
 revenue. Larger organizations require an enterprise license — contact
 [pdpglab.xyz](https://pdpglab.xyz).
+
+---
+
+Maintained by [PDPG-lab](https://pdpglab.xyz).
