@@ -31,10 +31,23 @@ def ctx():
 
 
 @pytest.fixture(scope="session")
-def pub_ctx(ctx, tmp_path_factory):
-    path = tmp_path_factory.mktemp("keys") / "vendor.ctx"
-    ctx.save_public(path)
-    return pdpg.Context.load(path)
+def stranger_ctx():
+    """A second, unrelated key pair."""
+    return pdpg.Context.create()
+
+
+@pytest.fixture(scope="session")
+def key_files(ctx, tmp_path_factory):
+    keys = tmp_path_factory.mktemp("keys")
+    orga, vendor = keys / "orga.key", keys / "vendor.ctx"
+    ctx.save(orga)
+    ctx.save_public(vendor)
+    return orga, vendor
+
+
+@pytest.fixture(scope="session")
+def pub_ctx(key_files):
+    return pdpg.Context.load(key_files[1])
 
 
 # ---------------------------------------------------------------- roundtrip
@@ -174,11 +187,10 @@ def test_np_ufunc_spellings(ctx):
     assert np.allclose(np.negative(enc).decrypt(), -X1D_PLAIN, atol=ATOL)
 
 
-def test_mismatched_context_rejected(ctx):
+def test_mismatched_context_rejected(ctx, stranger_ctx):
     # a second context has a different fingerprint; combining must fail
-    ctx2 = pdpg.Context.create()
     a = pdpg.encrypt(X1D_PLAIN, ctx)
-    b = pdpg.encrypt(X1D_PLAIN, ctx2)
+    b = pdpg.encrypt(X1D_PLAIN, stranger_ctx)
     with pytest.raises(ValueError, match="context"):
         a + b
 
@@ -324,3 +336,69 @@ def test_repr_never_shows_values(ctx, pub_ctx):
     assert "secret_key=present" in repr(pdpg.encrypt(X_PLAIN, ctx))
     # no slot value should ever appear
     assert not any(f"{v:.3f}" in r for v in X_PLAIN[:, 0][:3])
+
+# ----------------------------------------------------------------------- io
+
+def test_enc_roundtrip(ctx, tmp_path):
+    enc = pdpg.encrypt(X_PLAIN, ctx)
+    enc.save(tmp_path / "data.enc")
+    loaded = pdpg.load(tmp_path / "data.enc", ctx)
+    assert loaded.shape == X_PLAIN.shape
+    assert np.allclose(loaded.decrypt(), X_PLAIN, atol=ATOL)
+
+
+def test_enc_roundtrip_reduced_packing(ctx, tmp_path):
+    enc = pdpg.encrypt(X_PLAIN, ctx).mean(axis=0)
+    enc.save(tmp_path / "mean.enc")
+    loaded = pdpg.load(tmp_path / "mean.enc", ctx)
+    assert np.allclose(loaded.decrypt(), X_PLAIN.mean(axis=0), atol=ATOL)
+
+
+def test_load_wrong_context_fingerprint(ctx, stranger_ctx, tmp_path):
+    pdpg.encrypt(X1D_PLAIN, ctx).save(tmp_path / "d.enc")
+    with pytest.raises(ValueError, match="context"):
+        pdpg.load(tmp_path / "d.enc", stranger_ctx)
+
+
+def test_load_rejects_non_enc_file(ctx, tmp_path):
+    path = tmp_path / "x.npy"
+    np.save(path, X_PLAIN)
+    with pytest.raises(ValueError, match="magic"):
+        pdpg.load(path, ctx)
+
+
+def test_two_party_flow(ctx, key_files, tmp_path):
+    orga_key, vendor_ctx = key_files
+    # Org A encrypts and ships
+    pdpg.encrypt(X_PLAIN, ctx).save(tmp_path / "data.enc")
+    # Vendor: public context only, unmodified numpy scoring code
+    pdpg.activate(vendor_ctx)
+    X = pdpg.load(tmp_path / "data.enc")
+    scores = X @ W_VEC + 0.7
+    with pytest.raises(EncryptedOperationError, match="Why:"):
+        scores.decrypt()
+    scores.save(tmp_path / "result.enc")
+    # Org A gets the result back
+    pdpg.activate(orga_key)
+    result = pdpg.load(tmp_path / "result.enc").decrypt()
+    assert np.allclose(result, X_PLAIN @ W_VEC + 0.7, atol=ATOL)
+
+
+def test_install_routes_np_load(ctx, key_files, tmp_path):
+    enc_path = tmp_path / "data.enc"
+    npy_path = tmp_path / "plain.npy"
+    pdpg.encrypt(X_PLAIN, ctx).save(enc_path)
+    np.save(npy_path, X_PLAIN)
+    real_load = np.load
+    pdpg.activate(key_files[0])
+    pdpg.install()
+    try:
+        loaded = np.load(enc_path)
+        assert isinstance(loaded, pdpg.CipherArray)
+        assert np.allclose(loaded.decrypt(), X_PLAIN, atol=ATOL)
+        plain = np.load(npy_path)
+        assert isinstance(plain, np.ndarray)
+        assert np.array_equal(plain, X_PLAIN)
+    finally:
+        pdpg.uninstall()
+    assert np.load is real_load

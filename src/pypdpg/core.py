@@ -60,6 +60,12 @@ class CipherArray:
         key = "present" if self._ctx.has_secret else "absent"
         return f"<CipherArray shape={self._shape} 🙈 CKKS · secret_key={key}>"
 
+    def save(self, path) -> None:
+        """Write this array as a portable .enc file."""
+        from . import io as _io  # late import; io builds on core
+
+        _io.save(self, path)
+
     # --- custody boundary ---
 
     def decrypt(self) -> np.ndarray:

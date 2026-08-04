@@ -8,6 +8,8 @@ from . import approx
 from .context import Context, activate, default_context
 from .core import CipherArray, encrypt
 from .errors import EncryptedOperationError
+from .io import load
+from .patch import install, uninstall
 
 __version__ = "0.1.0"
 
@@ -19,4 +21,7 @@ __all__ = [
     "activate",
     "default_context",
     "encrypt",
+    "install",
+    "load",
+    "uninstall",
 ]
