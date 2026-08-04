@@ -3,6 +3,20 @@
 How a numpy expression ends up as CKKS operations, and why the pieces look
 the way they do.
 
+## Backends
+
+pypdpg's public surface — `CipherArray`/`CipherFrame`, the dispatch
+protocols, `pdpg.sklearn.wrap`, the `.enc` container — is deliberately
+scheme-neutral: nothing in it promises CKKS specifics, and the `.enc`
+header records which scheme produced a file. The current (and only)
+backend is TenSEAL's CKKS; its calls are inlined in `core.py` today rather
+than hidden behind a formal backend interface. Extracting that interface —
+roughly: encrypt/decrypt, add/mul (plain and cipher), rotate-sum, polyval,
+serialize — is roadmap work that becomes worth doing the moment a second
+backend (TFHE-class: exact comparisons, programmable bootstrapping) is
+real. The intended selection point is context creation, so two parties
+agree on a backend the same way they already agree on a key pair.
+
 ## Column packing
 
 A `(N, d)` array is stored as `d` TenSEAL `ckks_vector`s, each packing one

@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "pypdpg"
 version = "0.1.0"
-description = "Encrypted execution for common Python data workloads: numpy core with pandas and scikit-learn layers, on CKKS ciphertext"
+description = "Encrypted execution for common Python data workloads: numpy core with pandas and scikit-learn layers. Current backend: TenSEAL (CKKS)"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE.md" }

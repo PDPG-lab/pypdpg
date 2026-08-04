@@ -26,6 +26,17 @@ explanation. A [PDPG-lab](https://pdpglab.xyz) project.
 | **shell** | CLI | `pdpg keygen / encrypt / inspect / decrypt` |
 | statsmodels, PyTorch (linear + square-activation nets), … | planned | — |
 
+## Backends
+
+The API — `CipherArray`, `CipherFrame`, `pdpg.sklearn.wrap`, the `.enc`
+format — is the product; the encryption scheme behind it is a backend.
+Today there is one: **TenSEAL (CKKS)**, approximate arithmetic at
+multiplicative depth 4. The `.enc` container already records its scheme,
+and the roadmap is TFHE-class backends (exact comparisons, programmable
+bootstrapping), selectable at context creation. When a backend lands, the
+"planned" column below moves to "works" — workload code doesn't change.
+The backend is our problem, not yours.
+
 ## Installation
 
 ```
@@ -68,7 +79,7 @@ load exactly as before, `pdpg.uninstall()` restores the original.
 |---|---|
 | Works unchanged | `+ - * /scalar` · `@` · `dot` · `sum` · `mean` · `square` · `**n` · `pdpg.approx.sigmoid` · column select `X[:, j]` · save/load · `np.load` · fitted scikit-learn linear models via `pdpg.sklearn.wrap` · DataFrame-style named columns (`CipherFrame`) · `pdpg` CLI |
 | Requires rewriting | data-dependent logic, expressed branchless: `if/else` as `gate*b + (1-gate)*c` · thresholds via `sigmoid` gates · row filtering via full-shape masking · division by ciphertext via plain reciprocals |
-| Planned (engine-side) | exact comparisons, `max`/`sort` · ciphertext division · `exp`/`log`/`sqrt` · unlimited depth via bootstrapping · encrypted×encrypted matmul · GPU |
+| Planned (backend-side) | exact comparisons, `max`/`sort` · ciphertext division · `exp`/`log`/`sqrt` · unlimited depth via bootstrapping · encrypted×encrypted matmul · GPU |
 
 Operations that would reveal plaintext to the computing party — comparisons
 returning readable booleans, `bool()`, `np.asarray`, decryption without the
@@ -193,6 +204,8 @@ Each runs standalone, top-to-bottom, on a fresh Colab runtime.
   pypdpg currently uses as its backend.
 
 ## Limitations
+
+These describe the current CKKS backend:
 
 - CKKS arithmetic is approximate (~1e-4 error on the demo workload).
 - Multiplicative depth is 4; longer chains raise a depth error.
