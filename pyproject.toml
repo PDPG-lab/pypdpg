@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pypdpg"
+version = "0.1.0"
+description = "Drop-in encrypted numpy: run existing numpy pipelines on FHE ciphertext"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "PDPG-lab" }]
+dependencies = ["numpy", "tenseal"]
+
+[project.urls]
+Homepage = "https://github.com/PDPG-lab/pypdpg"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pypdpg"]

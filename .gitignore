@@ -1,0 +1,16 @@
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# demo artifacts (keys & ciphertext are generated, never committed)
+*.enc
+*.ctx
+*.key
+*.npy
