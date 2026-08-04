@@ -39,12 +39,16 @@ You are a **Qualified User** if at least one of the following applies:
    research.
 3. **Non-profits.** You are a registered non-profit, charitable, or
    public-benefit organization.
-4. **Small and mid-size organizations.** You are any other organization whose
+4. **Government and public sector.** You are a government agency, state or
+   local authority, public body, or intergovernmental organization, using the
+   software in the exercise of your public functions. (State-owned enterprises
+   engaged in commercial activity qualify under clause 5, not this one.)
+5. **Small and mid-size organizations.** You are any other organization whose
    **Total Revenue** in the most recently completed twelve-month financial
    period did not exceed **THB 500,000,000** or **USD 15,000,000** (or the
    equivalent in other currencies), whichever applies to you. If either
    threshold is exceeded, you are not a Qualified User under this clause.
-5. **Evaluation.** You are any organization evaluating the software for a
+6. **Evaluation.** You are any organization evaluating the software for a
    period of up to 30 days, without using it in production.
 
 **Total Revenue** means the total consolidated gross revenue of you and all
