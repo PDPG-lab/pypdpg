@@ -37,6 +37,13 @@ bootstrapping), selectable at context creation. When a backend lands, the
 "planned" column below moves to "works" — workload code doesn't change.
 The backend is our problem, not yours.
 
+That bet is deliberate: FHE is one of cryptography's most active areas, and
+it is maturing fast — CKKS itself only dates to 2017, runtimes have gained
+orders of magnitude since, Apple shipped homomorphic encryption in
+production iOS in 2024, and dedicated hardware acceleration is in active
+development. Staying backend-neutral means workloads written against pypdpg
+inherit that curve instead of chasing it.
+
 ## Installation
 
 ```
