@@ -4,38 +4,64 @@
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License: PDPG Community](https://img.shields.io/badge/license-PDPG%20Community-blueviolet)
 
-**Your numpy pipeline. On ciphertext. Unchanged.**
+Run numpy code on CKKS-encrypted arrays. The data owner encrypts and keeps
+the secret key; another party computes on the ciphertext using ordinary numpy
+operations; the owner decrypts the result. Built on
+[TenSEAL](https://github.com/OpenMined/TenSEAL), developed by
+[PDPG-lab](https://pdpglab.xyz).
 
-Someone hands you `data.enc`. You `np.load` it, run the same scoring code you
-wrote years ago, and send back `result.enc` — without ever being *able* to
-read a row of what you just processed. Fully homomorphic encryption
-([TenSEAL](https://github.com/OpenMined/TenSEAL)/CKKS) wearing a numpy skin,
-by [PDPG-lab](https://pdpglab.xyz).
+## Installation
+
+```
+pip install git+https://github.com/PDPG-lab/pypdpg
+```
+
+Python 3.10+. TenSEAL is installed as a dependency (wheels available for
+Linux x86_64, macOS arm64, and Windows).
+
+## Usage
 
 ```python
 import pypdpg as pdpg
 
-# ---- Org A: owns the data, keeps the key ----
+# data owner: create keys, encrypt, ship
 ctx = pdpg.Context.create()
-ctx.save("orga.key")
-ctx.save_public("vendor.ctx")
+ctx.save("orga.key")                 # includes secret key, stays with the owner
+ctx.save_public("vendor.ctx")        # evaluation keys only
 pdpg.encrypt(X, ctx).save("data.enc")
 
-# ---- Vendor: two new lines, zero new concepts ----
+# computing party: no secret key
 pdpg.activate("vendor.ctx")
-pdpg.install()                    # np.load now speaks .enc
-X = np.load("data.enc")           # <CipherArray shape=(200, 5) 🙈 CKKS · secret_key=absent>
-scores = X @ w + b                # your model, computing blind
+pdpg.install()                       # np.load now recognizes .enc files
+X = np.load("data.enc")              # CipherArray, shape (200, 5)
+scores = X @ w + b                   # unchanged numpy code
 scores.save("result.enc")
 
-# ---- Org A: only holder of the key ----
+# data owner: decrypt the result
 pdpg.activate("orga.key")
 result = pdpg.load("result.enc").decrypt()
 ```
 
-## Errors that teach
+`pdpg.install()` patches `np.load` with a magic-byte check; regular files
+load exactly as before, `pdpg.uninstall()` restores the original.
+`decrypt()` requires a context that holds the secret key.
 
-Try to peek, and the library explains the cryptography to you:
+## Supported operations
+
+| | |
+|---|---|
+| Works unchanged | `+ - * /scalar` · `@` · `dot` · `sum` · `mean` · `square` · `**n` · `pdpg.approx.sigmoid` · column select `X[:, j]` · save/load · `np.load` |
+| Requires rewriting | data-dependent logic, expressed branchless: `if/else` as `gate*b + (1-gate)*c` · thresholds via `sigmoid` gates · row filtering via full-shape masking · division by ciphertext via plain reciprocals |
+| Planned (engine-side) | exact comparisons, `max`/`sort` · ciphertext division · `exp`/`log`/`sqrt` · unlimited depth via bootstrapping · encrypted×encrypted matmul · GPU |
+
+Operations that would reveal plaintext to the computing party — comparisons
+returning readable booleans, `bool()`, `np.asarray`, decryption without the
+key — are excluded by the security model rather than by the roadmap.
+
+## Error messages
+
+Unsupported operations raise `EncryptedOperationError` with an explanation
+and an alternative, instead of a backend stack trace:
 
 ```
 >>> X > 600
@@ -47,67 +73,57 @@ or soft-threshold with pdpg.approx.sigmoid(x).
 Supported here: + - * @ dot sum mean square / scalar, pdpg.approx.sigmoid
 ```
 
-Every impossible operation answers like this — comparisons, `np.exp`, division
-by ciphertext, `np.asarray`, row indexing, `bool()`. Never a bare stack trace.
+## Conditional logic
 
-## What drops in, what needs a rewrite, what's coming
-
-| | |
-|---|---|
-| ✅ **drop in now** | existing numpy code runs unchanged: `+ - * /scalar` · `@` · `dot` · `sum` · `mean` · `square` · `**n` · `pdpg.approx.sigmoid` · column select `X[:, j]` · save/load · `np.load` |
-| 🔁 **needs a rewrite** | data-dependent logic runs today, written branchless — the same discipline as constant-time crypto code: `if/else` → `gate*b + (1-gate)*c` · thresholds → `sigmoid` gates · row filtering → full-shape masking (a filtered row *count* would leak) · `/ cipher` → multiply by a reciprocal |
-| 🔜 **waiting on the engine** | exact comparisons and `max`/`sort` (programmable bootstrapping / sign circuits) · ciphertext division · high-precision `exp`/`log`/`sqrt` · unlimited depth via bootstrapping · encrypted@encrypted matmul · GPU acceleration. When the engine lands them, they drop in — your code doesn't change |
-
-And one thing that fits no bucket, ever: *this* party reading the data.
-That's not a roadmap item; that's the security guarantee.
-
-## Encrypted if/else
-
-Branching on ciphertext is impossible — a plaintext `bool` is exactly what
-the vendor must never have. *Selecting* on ciphertext is just arithmetic:
+Branching on encrypted values is not possible (it would require a plaintext
+boolean). Selection is expressed arithmetically:
 
 ```python
-# if x > 0: b else c   —   gate and both branches stay encrypted
-gate = pdpg.approx.sigmoid(x)
-result = gate * b + (1 - gate) * c
+gate = pdpg.approx.sigmoid(x)          # encrypted soft indicator
+result = gate * b + (1 - gate) * c     # if x > 0: b else c
 ```
 
-Runs today, three of four depth levels, every row lands on the right branch.
-The full rewrite rules live in [docs/design.md](docs/design.md).
+Both branches are always evaluated, loops need fixed bounds, and result
+shapes cannot depend on data. See [docs/design.md](docs/design.md) for the
+rewriting rules.
 
-## Try it
+## Demo
 
-One click: the [Colab demo](https://colab.research.google.com/github/PDPG-lab/pypdpg/blob/main/demo/demo.ipynb)
-plays both parties — encrypt, score blind, decrypt, then a whole act of
-trying (and failing) to leak data. Locally:
+[demo/demo.ipynb](demo/demo.ipynb) walks through the full two-party flow —
+encryption, blind scoring, decryption, and a section of attempted leaks —
+and runs top-to-bottom on a fresh Colab runtime.
 
-```
-pip install git+https://github.com/PDPG-lab/pypdpg
-```
+## Documentation
 
-## vs the field
+- [docs/design.md](docs/design.md) — column packing, dispatch, file formats,
+  key handling
+- [docs/fine-print.md](docs/fine-print.md) — accuracy and size measurements,
+  depth budget, threat model, legal notes
 
-- **[Zama Concrete](https://github.com/zama-ai/concrete)** compiles a fixed
-  circuit ahead of time; we dispatch at runtime. Zero compilation, true drop-in.
-- **[CuPy](https://cupy.dev/) / [Dask](https://www.dask.org/)** — we're the
-  encrypted member of the duck-array family.
-- **[TenSEAL](https://github.com/OpenMined/TenSEAL)** is our engine; we're the
-  numpy dispatch, key custody model, and file format on top.
+## Related projects
 
-## Fine print (really, do read it)
+- [TenSEAL](https://github.com/OpenMined/TenSEAL) — the underlying CKKS
+  engine.
+- [Zama Concrete](https://github.com/zama-ai/concrete) — ahead-of-time
+  circuit compilation; pypdpg dispatches at runtime instead.
+- [CuPy](https://cupy.dev/) / [Dask](https://www.dask.org/) — duck-typed
+  array libraries; pypdpg implements the same numpy dispatch protocols.
 
-CKKS arithmetic is approximate (~1e-4), multiplication depth is finite (4
-chained), arrays cap at 8192 rows, and ciphertext is ~1 MB per column.
-Encrypted is **pseudonymized, not anonymized** — GDPR still applies. The
-measurements, caveats, and legal framing live in
-[docs/fine-print.md](docs/fine-print.md); the architecture (column packing,
-dispatch, `.enc` format, custody) in [docs/design.md](docs/design.md).
+## Limitations
+
+- CKKS arithmetic is approximate (~1e-4 error on the demo workload).
+- Multiplicative depth is 4; longer chains raise a depth error.
+- Arrays are 1-D/2-D, up to 8192 rows.
+- Ciphertext is ~1 MB per column; the evaluation context is ~180 MB.
+- Encrypted data remains personal data under GDPR (pseudonymization, not
+  anonymization).
+
+Details in [docs/fine-print.md](docs/fine-print.md).
 
 ## License
 
-Free for individuals, education, research, non-profits, government and
-public-sector bodies, and organizations under **THB 50M** (Thai-registered) /
-**USD 1M** (elsewhere) annual revenue. Bigger than that? You're the reason we
-can afford the free part — [pdpglab.xyz](https://pdpglab.xyz). Full terms:
-[LICENSE.md](LICENSE.md) (source-available, not OSI open source, and we don't
-claim otherwise).
+[PDPG Community License](LICENSE.md) (source-available). Free for
+individuals, education, research, non-profits, the public sector, and
+organizations under THB 50M (Thai-registered) / USD 1M (elsewhere) annual
+revenue. Larger organizations require an enterprise license — contact
+[pdpglab.xyz](https://pdpglab.xyz).
