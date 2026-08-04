@@ -2,7 +2,7 @@
 
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/PDPG-lab/pypdpg/blob/main/demo/demo.ipynb)
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
-![License: MIT](https://img.shields.io/badge/license-MIT-green)
+![License: PDPG Community](https://img.shields.io/badge/license-PDPG%20Community-blueviolet)
 
 **Drop-in encrypted numpy.** Org A encrypts its data with fully homomorphic
 encryption and ships it to a vendor. The vendor pip-installs this library, adds
@@ -76,4 +76,10 @@ neither should you.
 
 ## License
 
-MIT
+**Source-available under the [PDPG Community License](LICENSE.md).** We build
+this so that privacy-preserving computation becomes ordinary — which means it
+must be free for the people protecting the public. It is free for individuals,
+education, research, non-profits, and any organization under **THB 500M /
+USD 15M** annual revenue. Above that line, you're the reason we can afford to
+keep it free: [get in touch](https://github.com/PDPG-lab) for an enterprise
+license. (Not an OSI-approved open-source license, and we don't claim it is.)
