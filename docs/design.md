@@ -69,8 +69,8 @@ unchanged when they do.
 `coeff_mod_bit_sizes=[60,40,40,40,40,60]`, scale 2^40, galois + relin keys —
 ~128-bit security, depth 4, 8192 slots). Two save paths:
 
-- `ctx.save("orga.key")` — full context including the secret key. Never ships.
-- `ctx.save_public("vendor.ctx")` — public + evaluation keys only. Safe to
+- `ctx.save("controller.key")` — full context including the secret key. Never ships.
+- `ctx.save_public("processor.ctx")` — public + evaluation keys only. Safe to
   ship; `sum()` and relinearization work, `decrypt()` raises `E-CUSTODY`.
 
 Both files carry a **fingerprint**: `sha256(public context bytes)[:16]`,

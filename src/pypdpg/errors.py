@@ -24,7 +24,7 @@ _CATALOG = {
         "decryption requires the secret key, and this context holds only "
         "public evaluation keys. That's the point.",
         "save the encrypted result and return it to the data owner — only "
-        'their context (e.g. pdpg.activate("orga.key")) can decrypt.',
+        'their context (e.g. pdpg.activate("controller.key")) can decrypt.',
     ),
     "E-DIV": (
         "CKKS has no ciphertext division — computing a reciprocal would "

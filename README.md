@@ -4,10 +4,10 @@
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License: PDPG Community](https://img.shields.io/badge/license-PDPG%20Community-blueviolet)
 
-Run numpy code on homomorphically encrypted arrays. The data owner encrypts and keeps
-the secret key; another party computes on the ciphertext using ordinary numpy
-operations; the owner decrypts the result. A
-[PDPG-lab](https://pdpglab.xyz) project.
+Run numpy code on homomorphically encrypted arrays. The data controller
+encrypts and keeps the secret key; the data processor computes on the
+ciphertext using ordinary numpy operations; the controller decrypts the
+result. A [PDPG-lab](https://pdpglab.xyz) project.
 
 ## Installation
 
@@ -23,21 +23,21 @@ macOS arm64, and Windows.
 ```python
 import pypdpg as pdpg
 
-# data owner: create keys, encrypt, ship
+# data controller: create keys, encrypt, ship
 ctx = pdpg.Context.create()
-ctx.save("orga.key")                 # includes secret key, stays with the owner
-ctx.save_public("vendor.ctx")        # evaluation keys only
+ctx.save("controller.key")           # includes secret key, stays with the controller
+ctx.save_public("processor.ctx")     # evaluation keys only
 pdpg.encrypt(X, ctx).save("data.enc")
 
-# computing party: no secret key
-pdpg.activate("vendor.ctx")
+# data processor: no secret key
+pdpg.activate("processor.ctx")
 pdpg.install()                       # np.load now recognizes .enc files
 X = np.load("data.enc")              # CipherArray, shape (200, 5)
 scores = X @ w + b                   # unchanged numpy code
 scores.save("result.enc")
 
-# data owner: decrypt the result
-pdpg.activate("orga.key")
+# data controller: decrypt the result
+pdpg.activate("controller.key")
 result = pdpg.load("result.enc").decrypt()
 ```
 
@@ -114,8 +114,8 @@ and runs top-to-bottom on a fresh Colab runtime.
 - Multiplicative depth is 4; longer chains raise a depth error.
 - Arrays are 1-D/2-D, up to 8192 rows.
 - Ciphertext is ~1 MB per column; the evaluation context is ~180 MB.
-- Encrypted data remains personal data under GDPR (pseudonymization, not
-  anonymization).
+- Encrypted data remains personal data under GDPR and Thailand's PDPA
+  (pseudonymization, not anonymization).
 
 Details in [docs/fine-print.md](docs/fine-print.md).
 

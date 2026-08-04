@@ -6,10 +6,12 @@ true.
 ## What this is not
 
 Encrypted-with-a-key data is **pseudonymized, not anonymized** — GDPR still
-applies to it. pypdpg is a technical measure in the sense of Art. 32, a data
-minimization tool, and a supplementary measure for third-country transfers in
-the sense of *Schrems II*. We do not claim it makes data non-personal, and
-neither should you.
+applies to it, and so does Thailand's PDPA, which follows the same data
+controller / data processor model. pypdpg is a technical measure in the sense
+of GDPR Art. 32 (and the PDPA's security-measure duties), a data minimization
+tool, and a supplementary measure for third-country transfers in the sense of
+*Schrems II*. We do not claim it makes data non-personal, and neither should
+you.
 
 This is a research prototype, not certified production cryptography. The
 underlying scheme (CKKS via TenSEAL/Microsoft SEAL) is serious; our packaging
@@ -32,7 +34,7 @@ of it has had no independent security review.
 - **Size.** A ciphertext column is ~1 MB regardless of how many of its slots
   you use: ~16× overhead with all 8192 slots full, hundreds of × for small
   demos (the 200×5 demo array is ~5 MB against 8 kB of plaintext). The
-  one-time `vendor.ctx` evaluation-key file is ~180 MB — galois keys are
+  one-time `processor.ctx` evaluation-key file is ~180 MB — galois keys are
   large at this degree.
 - **`pdpg.approx.sigmoid` is a degree-3 polynomial**, accurate to ~1e-1 on
   inputs in roughly [-5, 5] and *divergent* outside that range. Scale your
@@ -46,9 +48,9 @@ of it has had no independent security review.
 
 ## Threat model, briefly
 
-The vendor is honest-but-curious: they run the agreed computation but might
-try to read the data. Against that, ciphertext plus a public evaluation
-context reveals nothing usable. A actively malicious vendor could return
+The data processor is honest-but-curious: it runs the agreed computation but
+might try to read the data. Against that, ciphertext plus a public evaluation
+context reveals nothing usable. An actively malicious processor could return
 wrong results (FHE alone doesn't give verifiability) or refuse to compute;
 result *shape* and file sizes are visible by design. Key custody is the whole
-game: `orga.key` never travels.
+game: `controller.key` never travels.

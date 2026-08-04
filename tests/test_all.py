@@ -39,10 +39,10 @@ def stranger_ctx():
 @pytest.fixture(scope="session")
 def key_files(ctx, tmp_path_factory):
     keys = tmp_path_factory.mktemp("keys")
-    orga, vendor = keys / "orga.key", keys / "vendor.ctx"
-    ctx.save(orga)
-    ctx.save_public(vendor)
-    return orga, vendor
+    controller, processor = keys / "controller.key", keys / "processor.ctx"
+    ctx.save(controller)
+    ctx.save_public(processor)
+    return controller, processor
 
 
 @pytest.fixture(scope="session")
@@ -65,7 +65,7 @@ def test_roundtrip_1d(ctx):
 
 
 def test_context_save_load_roundtrip(ctx, tmp_path):
-    path = tmp_path / "orga.key"
+    path = tmp_path / "controller.key"
     ctx.save(path)
     loaded = pdpg.Context.load(path)
     assert loaded.has_secret
@@ -368,18 +368,18 @@ def test_load_rejects_non_enc_file(ctx, tmp_path):
 
 
 def test_two_party_flow(ctx, key_files, tmp_path):
-    orga_key, vendor_ctx = key_files
-    # Org A encrypts and ships
+    controller_key, processor_ctx = key_files
+    # the data controller encrypts and ships
     pdpg.encrypt(X_PLAIN, ctx).save(tmp_path / "data.enc")
-    # Vendor: public context only, unmodified numpy scoring code
-    pdpg.activate(vendor_ctx)
+    # the data processor: public context only, unmodified numpy scoring code
+    pdpg.activate(processor_ctx)
     X = pdpg.load(tmp_path / "data.enc")
     scores = X @ W_VEC + 0.7
     with pytest.raises(EncryptedOperationError, match="Why:"):
         scores.decrypt()
     scores.save(tmp_path / "result.enc")
-    # Org A gets the result back
-    pdpg.activate(orga_key)
+    # the controller gets the result back
+    pdpg.activate(controller_key)
     result = pdpg.load(tmp_path / "result.enc").decrypt()
     assert np.allclose(result, X_PLAIN @ W_VEC + 0.7, atol=ATOL)
 

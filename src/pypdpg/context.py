@@ -73,7 +73,7 @@ class Context:
         return self._ctx
 
     def save(self, path) -> None:
-        """Save the full context, secret key included. Org A keeps this."""
+        """Save the full context, secret key included. The data controller keeps this."""
         blob = self._ctx.serialize(
             save_public_key=True,
             save_secret_key=True,
@@ -130,6 +130,6 @@ def default_context() -> Context:
     if _default_context is None:
         raise RuntimeError(
             "No active pypdpg context. Call pdpg.activate(<context file>) first "
-            '— e.g. pdpg.activate("vendor.ctx").'
+            '— e.g. pdpg.activate("processor.ctx").'
         )
     return _default_context

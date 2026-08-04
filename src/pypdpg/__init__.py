@@ -1,7 +1,8 @@
 """pypdpg — drop-in encrypted numpy.
 
-Org A encrypts, the vendor computes on ciphertext with unmodified numpy
-code, Org A decrypts. Nobody in the middle can read a thing.
+The data controller encrypts, the data processor computes on ciphertext
+with unmodified numpy code, the controller decrypts. Nobody in the middle
+can read a thing.
 """
 
 from . import approx
