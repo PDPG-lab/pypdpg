@@ -44,6 +44,27 @@ result = pdpg.load("result.enc").decrypt()
 Today every unsupported op raises a teaching error explaining why and what to
 do instead. The engine improves; your code doesn't.
 
+### Control flow: rewrite, don't branch
+
+Python's `if` needs a plaintext boolean, so *branching* on encrypted data is
+impossible by design. *Selecting* on encrypted data is just arithmetic —
+rewrite branches the way constant-time crypto code does: evaluate both sides,
+blend with an encrypted gate.
+
+```python
+# if x > 0: b else c   —   branchless; gate and both branches stay encrypted
+gate = pdpg.approx.sigmoid(x)         # soft indicator in [0, 1], ciphertext
+result = gate * b + (1 - gate) * c    # selection by multiplication
+```
+
+This runs today (three of the four depth levels, ~1e-4 error, every row lands
+on the correct branch). The rules are the ones constant-time programmers
+already know: both branches always execute, loops need fixed worst-case
+bounds, and result shapes can't depend on data — a filtered row count would
+leak. Under CKKS the gate is soft, with a gray zone near the threshold; exact
+0/1 gates arrive with the comparison circuits in the 🔜 row above, and this
+pattern doesn't change when they do.
+
 ## What this is not
 
 Encrypted-with-a-key data is **pseudonymized, not anonymized** — GDPR still
