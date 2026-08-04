@@ -4,7 +4,7 @@
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License: PDPG Community](https://img.shields.io/badge/license-PDPG%20Community-blueviolet)
 
-Run numpy code on CKKS-encrypted arrays. The data owner encrypts and keeps
+Run numpy code on homomorphically encrypted arrays. The data owner encrypts and keeps
 the secret key; another party computes on the ciphertext using ordinary numpy
 operations; the owner decrypts the result. A
 [PDPG-lab](https://pdpglab.xyz) project.
