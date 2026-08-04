@@ -24,15 +24,16 @@ _MAGIC = b"CENC"
 _VERSION = 1
 
 
-def save(arr: CipherArray, path) -> None:
-    header = json.dumps(
-        {
-            "shape": list(arr.shape),
-            "packing": arr._packing,
-            "scheme": "ckks",
-            "ctx_fp": arr.context.fingerprint,
-        }
-    ).encode()
+def save(arr: CipherArray, path, columns=None) -> None:
+    header_fields = {
+        "shape": list(arr.shape),
+        "packing": arr._packing,
+        "scheme": "ckks",
+        "ctx_fp": arr.context.fingerprint,
+    }
+    if columns is not None:
+        header_fields["columns"] = list(columns)
+    header = json.dumps(header_fields).encode()
     with open(path, "wb") as f:
         f.write(_MAGIC)
         f.write(struct.pack("<BI", _VERSION, len(header)))
@@ -68,4 +69,9 @@ def load(path, ctx: Context | None = None) -> CipherArray:
         offset += 4
         vectors.append(ts.ckks_vector_from(ctx.ts, data[offset : offset + blob_len]))
         offset += blob_len
-    return CipherArray(vectors, tuple(header["shape"]), header["packing"], ctx)
+    arr = CipherArray(vectors, tuple(header["shape"]), header["packing"], ctx)
+    if "columns" in header:
+        from .pandas import CipherFrame  # late import; pandas module builds on core
+
+        return CipherFrame(arr, header["columns"])
+    return arr

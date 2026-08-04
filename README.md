@@ -49,7 +49,7 @@ load exactly as before, `pdpg.uninstall()` restores the original.
 
 | | |
 |---|---|
-| Works unchanged | `+ - * /scalar` · `@` · `dot` · `sum` · `mean` · `square` · `**n` · `pdpg.approx.sigmoid` · column select `X[:, j]` · save/load · `np.load` · fitted scikit-learn linear models via `pdpg.sklearn.wrap` |
+| Works unchanged | `+ - * /scalar` · `@` · `dot` · `sum` · `mean` · `square` · `**n` · `pdpg.approx.sigmoid` · column select `X[:, j]` · save/load · `np.load` · fitted scikit-learn linear models via `pdpg.sklearn.wrap` · DataFrame-style named columns (`CipherFrame`) · `pdpg` CLI |
 | Requires rewriting | data-dependent logic, expressed branchless: `if/else` as `gate*b + (1-gate)*c` · thresholds via `sigmoid` gates · row filtering via full-shape masking · division by ciphertext via plain reciprocals |
 | Planned (engine-side) | exact comparisons, `max`/`sort` · ciphertext division · `exp`/`log`/`sqrt` · unlimited depth via bootstrapping · encrypted×encrypted matmul · GPU |
 
@@ -115,6 +115,37 @@ those. A scaler + logistic pipeline uses exactly the full multiplicative
 depth budget. `predict()` raises a teaching error in every wrapper: hard
 labels and nearest-centroid picks are decisions, and decisions belong to
 the key holder.
+
+## pandas-style frames
+
+`pdpg.encrypt` accepts DataFrames and returns a `CipherFrame`: named columns
+over ciphertext. Column names travel inside the `.enc` file, so the
+processor gets them back from `np.load`; `decrypt()` returns real labeled
+pandas objects. (A thin facade, not a real DataFrame — pandas is imported
+only at decrypt time and is not a dependency.)
+
+```python
+enc = pdpg.encrypt(df, ctx)              # CipherFrame [income, debt, age]
+enc["debt_ratio_k"] = enc["debt"] * 0.001    # computed column, encrypted
+enc[["income", "debt"]].mean()           # encrypted, labels preserved
+# ... controller side:
+enc.mean().decrypt()                     # pandas Series, index = column names
+```
+
+## Command line
+
+The two-party flow without writing Python:
+
+```
+pdpg keygen -o keys/
+pdpg encrypt applicants.csv -c keys/controller.key -o data.enc
+pdpg inspect data.enc          # shape, columns, fingerprint — never values
+pdpg decrypt result.enc -c keys/controller.key -o result.csv
+```
+
+`inspect` needs no key and shows exactly what an outsider can learn from the
+file: the shape, the column names, the size. Decrypting with the public
+context prints the custody teaching error and exits nonzero.
 
 ## Demo
 

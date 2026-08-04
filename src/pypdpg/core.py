@@ -421,8 +421,16 @@ class CipherArray:
         raise errors.for_numpy(getattr(func, "__name__", str(func)))
 
 
-def encrypt(arr, ctx: Context | None = None) -> CipherArray:
-    """Encrypt a 1-D or 2-D float array column-by-column."""
+def encrypt(arr, ctx: Context | None = None):
+    """Encrypt a 1-D or 2-D float array column-by-column.
+
+    DataFrame-like inputs (anything with .columns and .to_numpy()) come
+    back as a CipherFrame with their column names preserved.
+    """
+    if hasattr(arr, "columns") and hasattr(arr, "to_numpy"):
+        from .pandas import encrypt_frame  # late import; avoids module cycle
+
+        return encrypt_frame(arr, ctx)
     if ctx is None:
         ctx = default_context()
     a = np.asarray(arr, dtype=np.float64)

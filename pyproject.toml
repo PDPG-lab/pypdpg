@@ -12,6 +12,9 @@ license = { file = "LICENSE.md" }
 authors = [{ name = "PDPG-lab" }]
 dependencies = ["numpy", "tenseal"]
 
+[project.scripts]
+pdpg = "pypdpg.cli:main"
+
 [project.urls]
 Homepage = "https://pdpglab.xyz"
 Repository = "https://github.com/PDPG-lab/pypdpg"
