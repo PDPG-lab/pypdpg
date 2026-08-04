@@ -1,8 +1,9 @@
-"""pypdpg — drop-in encrypted numpy.
+"""pypdpg — encrypted execution for common Python data workloads.
 
 The data controller encrypts, the data processor computes on ciphertext
-with unmodified numpy code, the controller decrypts. Nobody in the middle
-can read a thing.
+with its ordinary code — numpy at the core, pandas and scikit-learn layers
+on top — and the controller decrypts. Nobody in the middle can read a
+thing.
 """
 
 from . import approx, sklearn

@@ -6,10 +6,25 @@
 
 🇹🇭 [อ่านภาษาไทย](README.th.md)
 
-Run numpy code on homomorphically encrypted arrays. The data controller
-encrypts and keeps the secret key; the data processor computes on the
-ciphertext using ordinary numpy operations; the controller decrypts the
-result. A [PDPG-lab](https://pdpglab.xyz) project.
+Run Python data workloads on homomorphically encrypted arrays. The data
+controller encrypts and keeps the secret key; the data processor computes on
+the ciphertext with its ordinary code; the controller decrypts the result.
+
+pypdpg is building up encrypted execution for the common Python data stack,
+library by library — numpy at the core, with pandas and scikit-learn layers
+on top. Coverage is partial and growing; within each library, the supported
+subset is what CKKS can honestly do, and everything else refuses with an
+explanation. A [PDPG-lab](https://pdpglab.xyz) project.
+
+## Library coverage
+
+| library | status | what runs on ciphertext |
+|---|---|---|
+| **numpy** | core | arithmetic, broadcasting, `@`/`dot`, reductions, `np.load` drop-in — via the array dispatch protocols |
+| **pandas** | facade | named columns, computed columns, labeled aggregates, `.enc` roundtrip (`CipherFrame`) |
+| **scikit-learn** | inference wrappers | fitted linear models, logistic probabilities, scalers, `KMeans` distances, pipelines (`pdpg.sklearn.wrap`) |
+| **shell** | CLI | `pdpg keygen / encrypt / inspect / decrypt` |
+| statsmodels, PyTorch (linear + square-activation nets), … | planned | — |
 
 ## Installation
 
