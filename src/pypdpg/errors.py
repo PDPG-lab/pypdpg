@@ -32,6 +32,25 @@ _CATALOG = {
         "multiply by a plain reciprocal (x * (1/c)), or return the "
         "denominator to the data owner to decrypt.",
     ),
+    "E-COMPARE": (
+        "comparing requires reading the value — the party running this code "
+        "holds no secret key. That's the point.",
+        "return the encrypted result to the data owner for the decision, "
+        "or soft-threshold with pdpg.approx.sigmoid(x).",
+    ),
+    "E-COERCE": (
+        "numpy tried to materialize the plaintext; that requires the secret "
+        "key on the data owner's side.",
+        "keep computing on the CipherArray (supported ops below), or "
+        ".decrypt() where the secret key lives.",
+    ),
+    "E-DEPTH": (
+        "each ciphertext multiplication consumes one of the 4 rescaling "
+        "levels this context provides, and this chain used them all.",
+        "chain fewer multiplications, or return the intermediate result to "
+        "the data owner for re-encryption (a fresh ciphertext starts at "
+        "full depth).",
+    ),
     "E-TRANSCEND": (
         "only polynomial functions (adds and multiplies) exist under FHE — "
         "transcendental functions have no homomorphic circuit.",
@@ -58,18 +77,41 @@ _CATALOG = {
     ),
 }
 
-# numpy op name -> catalog code. Grows with the teaching-error catalog;
-# anything unlisted falls back to E-UNSUPPORTED.
+# numpy op name -> catalog code. Anything unlisted falls back to
+# E-UNSUPPORTED.
+_COMPARE_OPS = (
+    "greater greater_equal less less_equal equal not_equal maximum minimum "
+    "fmax fmin absolute fabs sign sort argsort max min amax amin argmax "
+    "argmin clip isnan isinf isfinite any all nonzero where"
+)
+_TRANSCEND_OPS = (
+    "exp exp2 expm1 log log2 log10 log1p sqrt cbrt tanh sinh cosh sin cos "
+    "tan arcsin arccos arctan arctan2 arcsinh arccosh arctanh power float_power"
+)
+_DIV_OPS = "true_divide divide floor_divide remainder mod fmod reciprocal"
+
 _OP_TO_CODE = {
-    "true_divide": "E-DIV",
-    "divide": "E-DIV",
-    "power": "E-TRANSCEND",
+    **{op: "E-COMPARE" for op in _COMPARE_OPS.split()},
+    **{op: "E-TRANSCEND" for op in _TRANSCEND_OPS.split()},
+    **{op: "E-DIV" for op in _DIV_OPS.split()},
 }
 
 # symbol shown next to the op name when there is an operator spelling
 _OP_SYMBOL = {
     "true_divide": "/",
     "divide": "/",
+    "floor_divide": "//",
+    "remainder": "%",
+    "mod": "%",
+    "power": "**",
+    "greater": ">",
+    "greater_equal": ">=",
+    "less": "<",
+    "less_equal": "<=",
+    "equal": "==",
+    "not_equal": "!=",
+    "absolute": "abs",
+    "matmul": "@",
 }
 
 

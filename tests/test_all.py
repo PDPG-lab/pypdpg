@@ -253,6 +253,61 @@ def test_sliced_column_still_computes(ctx):
     assert np.allclose(got, X_PLAIN[:, 1] * 2 + 1, atol=ATOL)
 
 
+# ---------------------------------------------------------- teaching errors
+
+@pytest.fixture(scope="session")
+def encX(ctx):
+    return pdpg.encrypt(X_PLAIN, ctx)
+
+
+IMPOSSIBLE_OPS = {
+    "greater": lambda X: X > 0,
+    "equal-must-raise-not-identity": lambda X: X == X,
+    "exp": lambda X: np.exp(X),
+    "div-by-cipher": lambda X: X / X,
+    "rdiv-by-cipher": lambda X: 1.0 / X,
+    "sqrt-via-pow": lambda X: X**0.5,
+    "pow-zero": lambda X: X**0,
+    "abs": lambda X: abs(X),
+    "sort": lambda X: np.sort(X),
+    "max": lambda X: np.max(X),
+    "log": lambda X: np.log(X),
+    "bool": lambda X: bool(X),
+    "asarray": lambda X: np.asarray(X),
+    "row-index": lambda X: X[0],
+    "row-slice": lambda X: X[0:10],
+    "bool-mask": lambda X: X[np.ones(50, dtype=bool)],
+    "plain-matmul-left": lambda X: W_VEC @ X,
+    "floordiv": lambda X: X // 2,
+    "mod": lambda X: X % 2,
+    "ufunc-reduce": lambda X: np.add.reduce(X),
+}
+
+
+@pytest.mark.parametrize("attempt", IMPOSSIBLE_OPS.values(), ids=IMPOSSIBLE_OPS.keys())
+def test_impossible_ops_teach(encX, attempt):
+    with pytest.raises(EncryptedOperationError) as excinfo:
+        attempt(encX)
+    message = str(excinfo.value)
+    assert "Why:" in message
+    assert "Do instead:" in message
+
+
+def test_error_message_format(encX):
+    with pytest.raises(EncryptedOperationError) as excinfo:
+        encX > 0
+    message = str(excinfo.value)
+    assert message.startswith("np.greater (>) is impossible on CKKS ciphertexts.")
+    assert "Supported here:" in message
+
+
+def test_depth_exhausted_teaches(ctx):
+    enc = pdpg.encrypt(np.full(4, 1.1), ctx)
+    with pytest.raises(EncryptedOperationError, match="depth"):
+        for _ in range(6):
+            enc = enc * enc
+
+
 # ------------------------------------------------------------------ custody
 
 def test_decrypt_without_secret_key_raises(pub_ctx):

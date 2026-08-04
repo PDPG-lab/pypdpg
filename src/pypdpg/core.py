@@ -7,6 +7,8 @@ vector per column ("scalars" packing).
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+
 import numpy as np
 import tenseal as ts
 
@@ -14,6 +16,23 @@ from . import errors
 from .context import MAX_ROWS, Context, default_context
 
 _NUMBER = (int, float, np.integer, np.floating)
+
+_DEPTH_MARKERS = ("scale out of bounds", "end of modulus switching chain")
+
+
+@contextmanager
+def _depth_guard():
+    """Translate TenSEAL's out-of-levels error into a teaching error."""
+    try:
+        yield
+    except ValueError as e:
+        if any(marker in str(e) for marker in _DEPTH_MARKERS):
+            raise errors.make(
+                "E-DEPTH",
+                "this multiplication exceeded the multiplicative depth (4) "
+                "of the CKKS context.",
+            ) from None
+        raise
 
 
 class CipherArray:
@@ -129,7 +148,8 @@ class CipherArray:
                 return self._new([a - b for a, b in pairs])
             if op == "rsub":
                 return self._new([b - a for a, b in pairs])
-            return self._new([a * b for a, b in pairs])
+            with _depth_guard():
+                return self._new([a * b for a, b in pairs])
         operands = self._plain_operands(other)
         if operands is None:
             return NotImplemented
@@ -140,7 +160,8 @@ class CipherArray:
             return self._new([v - o for v, o in pairs])
         if op == "rsub":  # o - v == -(v - o); neg() is depth-free
             return self._new([(v - o).neg() for v, o in pairs])
-        return self._new([v * o for v, o in pairs])
+        with _depth_guard():
+            return self._new([v * o for v, o in pairs])
 
     def _divide(self, other):
         if isinstance(other, CipherArray):
@@ -164,7 +185,10 @@ class CipherArray:
             return NotImplemented
         if self._packing != "slots":
             raise ValueError("matmul on an already-reduced CipherArray is not supported.")
-        w = np.asarray(other, dtype=np.float64)
+        with _depth_guard():
+            return self._matmul_columns(np.asarray(other, dtype=np.float64))
+
+    def _matmul_columns(self, w: np.ndarray):
         if self.ndim == 1:
             (n,) = self._shape
             if w.shape != (n,):
@@ -187,11 +211,13 @@ class CipherArray:
         raise ValueError(f"matmul shape mismatch: {self._shape} @ {w.shape}")
 
     def square(self) -> "CipherArray":
-        return self._new([v.square() for v in self._vectors])
+        with _depth_guard():
+            return self._new([v.square() for v in self._vectors])
 
     def _polyval(self, coeffs) -> "CipherArray":
         """Evaluate a polynomial (lowest-degree coefficient first)."""
-        return self._new([v.polyval(list(coeffs)) for v in self._vectors])
+        with _depth_guard():
+            return self._new([v.polyval(list(coeffs)) for v in self._vectors])
 
     def sum(self, axis=None) -> "CipherArray":
         if self._packing != "slots":
@@ -291,6 +317,58 @@ class CipherArray:
             if e:
                 base = base.square()
         return result
+
+    # --- bare-operator traps ---
+    # Pure-Python expressions (enc > 0, abs(enc), bool(enc)) never enter
+    # numpy's dispatch; Python calls these dunders directly. Left undefined,
+    # __eq__ would silently "succeed" with identity semantics — a wrong
+    # answer instead of a refusal.
+
+    def __gt__(self, other):
+        raise errors.for_numpy("greater")
+
+    def __lt__(self, other):
+        raise errors.for_numpy("less")
+
+    def __ge__(self, other):
+        raise errors.for_numpy("greater_equal")
+
+    def __le__(self, other):
+        raise errors.for_numpy("less_equal")
+
+    def __eq__(self, other):
+        raise errors.for_numpy("equal")
+
+    def __ne__(self, other):
+        raise errors.for_numpy("not_equal")
+
+    __hash__ = None  # comparisons raise, so hashing is off the table too
+
+    def __abs__(self):
+        raise errors.for_numpy("absolute")
+
+    def __floordiv__(self, other):
+        raise errors.for_numpy("floor_divide")
+
+    __rfloordiv__ = __floordiv__
+
+    def __mod__(self, other):
+        raise errors.for_numpy("remainder")
+
+    __rmod__ = __mod__
+
+    def __bool__(self):
+        raise errors.make(
+            "E-COMPARE",
+            "bool(X) — truth-testing is impossible on CKKS ciphertexts.",
+        )
+
+    def __array__(self, *args, **kwargs):
+        raise errors.make(
+            "E-COERCE",
+            "np.asarray(X) — coercing a CipherArray to a plain ndarray is "
+            "impossible on this side of the trust boundary.",
+        )
 
     # --- numpy dispatch ---
 
