@@ -30,7 +30,7 @@ def _depth_guard():
             raise errors.make(
                 "E-DEPTH",
                 "this multiplication exceeded the multiplicative depth (4) "
-                "of the CKKS context.",
+                f"of the current backend ({errors.CURRENT_BACKEND}).",
             ) from None
         raise
 
@@ -184,8 +184,8 @@ class CipherArray:
         if isinstance(other, CipherArray):
             raise errors.make(
                 "E-UNSUPPORTED",
-                "np.matmul (@) between two encrypted arrays is impossible "
-                "on CKKS ciphertexts here.",
+                "np.matmul (@) between two encrypted arrays is not "
+                f"supported by the current backend ({errors.CURRENT_BACKEND}).",
             )
         if not isinstance(other, (list, tuple, np.ndarray)):
             return NotImplemented
@@ -269,8 +269,8 @@ class CipherArray:
                     return CipherArray(vecs, (n, len(vecs)), "slots", self._ctx)
         raise errors.make(
             "E-INDEX",
-            f"indexing a CipherArray with {key!r} is impossible on CKKS "
-            "ciphertexts (columns only).",
+            f"indexing a CipherArray with {key!r} is impossible on "
+            "encrypted arrays (columns only).",
         )
 
     # --- operator dunders (used when numpy isn't on the left) ---
@@ -307,7 +307,7 @@ class CipherArray:
         raise errors.make(
             "E-ORDER",
             "np.matmul (@) with the plaintext on the left of a CipherArray "
-            "is impossible on CKKS ciphertexts.",
+            "is not supported.",
         )
 
     def __pow__(self, n):
@@ -365,8 +365,9 @@ class CipherArray:
 
     def __bool__(self):
         raise errors.make(
-            "E-COMPARE",
-            "bool(X) — truth-testing is impossible on CKKS ciphertexts.",
+            "E-COERCE",
+            "bool(X) — truth-testing is impossible on encrypted arrays, by "
+            "design: Python branching needs a plaintext truth value.",
         )
 
     def __array__(self, *args, **kwargs):

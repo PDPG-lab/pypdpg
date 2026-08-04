@@ -1,80 +1,112 @@
-"""Teaching errors: every impossible operation explains itself.
+"""Teaching errors: every refused operation explains itself.
 
-One exception class, one catalog. Each entry says what you tried, why it
-cannot work on CKKS ciphertexts, and what to do instead.
+Two kinds of refusal, and the message says which:
+
+- ``backend`` — the *current* backend cannot compute this; a future backend
+  can, with the result still encrypted. These carry a "Backend roadmap:"
+  line.
+- ``design`` — impossible on encrypted arrays under any backend, because it
+  would hand this party a plaintext. That's the security model, not a gap.
 """
 
 _SUPPORTED = (
     "Supported here: + - * @ dot sum mean square / scalar, pdpg.approx.sigmoid"
 )
 
+# Single source of truth for the active backend name in error messages.
+# Becomes dynamic when a second backend exists.
+CURRENT_BACKEND = "CKKS"
+
 
 class EncryptedOperationError(TypeError):
-    """Raised when an operation is impossible (or forbidden) on ciphertext."""
+    """Raised when an operation is impossible (or refused) on ciphertext."""
 
     def __init__(self, code: str, message: str):
         self.code = code
         super().__init__(message)
 
 
-# code -> (why, do_instead). The headline is built per call site so it can
-# name the exact op the user tried.
 _CATALOG = {
-    "E-CUSTODY": (
-        "decryption requires the secret key, and this context holds only "
-        "public evaluation keys. That's the point.",
-        "save the encrypted result and return it to the data owner — only "
-        'their context (e.g. pdpg.activate("controller.key")) can decrypt.',
-    ),
-    "E-DIV": (
-        "CKKS has no ciphertext division — computing a reciprocal would "
-        "require reading the value, and this party holds no secret key.",
-        "multiply by a plain reciprocal (x * (1/c)), or return the "
+    "E-COMPARE": {
+        "kind": "backend",
+        "why": "the current backend cannot evaluate comparisons at all — "
+        "and even on a comparison-capable backend the result stays "
+        "encrypted; reading the verdict needs the key. That's the point.",
+        "do": "return the encrypted result to the data owner for the "
+        "decision, or soft-threshold with pdpg.approx.sigmoid(x).",
+        "roadmap": "TFHE-class backends compute comparisons with encrypted "
+        "results; workload code won't change.",
+    },
+    "E-DIV": {
+        "kind": "backend",
+        "why": "CKKS has no ciphertext division — computing a reciprocal "
+        "would require reading the value.",
+        "do": "multiply by a plain reciprocal (x * (1/c)), or return the "
         "denominator to the data owner to decrypt.",
-    ),
-    "E-COMPARE": (
-        "comparing requires reading the value — the party running this code "
-        "holds no secret key. That's the point.",
-        "return the encrypted result to the data owner for the decision, "
-        "or soft-threshold with pdpg.approx.sigmoid(x).",
-    ),
-    "E-COERCE": (
-        "numpy tried to materialize the plaintext; that requires the secret "
-        "key on the data owner's side.",
-        "keep computing on the CipherArray (supported ops below), or "
-        ".decrypt() where the secret key lives.",
-    ),
-    "E-DEPTH": (
-        "each ciphertext multiplication consumes one of the 4 rescaling "
-        "levels this context provides, and this chain used them all.",
-        "chain fewer multiplications, or return the intermediate result to "
-        "the data owner for re-encryption (a fresh ciphertext starts at "
-        "full depth).",
-    ),
-    "E-TRANSCEND": (
-        "only polynomial functions (adds and multiplies) exist under FHE — "
-        "transcendental functions have no homomorphic circuit.",
-        "use pdpg.approx.sigmoid(x), or fit your own low-degree polynomial "
-        "to the function over your input range.",
-    ),
-    "E-ORDER": (
-        "with the plaintext on the left, numpy leads the computation, and "
-        "pypdpg's column packing cannot serve the transposed product.",
-        "reorder so the encrypted array comes first: X @ w instead of w @ X.",
-    ),
-    "E-INDEX": (
-        "row selection would have to move or mask individual slots inside a "
-        "packed ciphertext, and boolean masks would need comparisons — "
-        "impossible without the secret key.",
-        "select whole columns instead — X[:, j] or X[:, [i, k]] — or return "
-        "the array to the data owner for row-level work.",
-    ),
-    "E-UNSUPPORTED": (
-        "CKKS evaluates additions and multiplications only; this operation "
-        "has no homomorphic form here.",
-        "return the encrypted result to the data owner, or approximate "
-        "with a polynomial (see pdpg.approx).",
-    ),
+        "roadmap": "backends with iterative reciprocal circuits can divide; "
+        "workload code won't change.",
+    },
+    "E-TRANSCEND": {
+        "kind": "backend",
+        "why": "only polynomial functions (adds and multiplies) exist under "
+        "the current backend — transcendental functions have no circuit "
+        "here.",
+        "do": "use pdpg.approx.sigmoid(x), or fit your own low-degree "
+        "polynomial to the function over your input range.",
+        "roadmap": "deeper polynomial budgets and programmable bootstrapping "
+        "approximate these; workload code won't change.",
+    },
+    "E-DEPTH": {
+        "kind": "backend",
+        "why": "each ciphertext multiplication consumes one of the 4 "
+        "rescaling levels this context provides, and this chain used them "
+        "all.",
+        "do": "chain fewer multiplications, or return the intermediate "
+        "result to the data owner for re-encryption (a fresh ciphertext "
+        "starts at full depth).",
+        "roadmap": "a bootstrapping-capable backend removes the depth limit "
+        "entirely; workload code won't change.",
+    },
+    "E-UNSUPPORTED": {
+        "kind": "backend",
+        "why": "the current backend evaluates additions and multiplications "
+        "only; this operation has no homomorphic form here.",
+        "do": "return the encrypted result to the data owner, or "
+        "approximate with a polynomial (see pdpg.approx).",
+        "roadmap": "backend coverage grows release by release; workload "
+        "code won't change when it does.",
+    },
+    "E-COERCE": {
+        "kind": "design",
+        "why": "this needs the plaintext value in this process, and that "
+        "value exists only where the secret key lives.",
+        "do": "keep computing on the CipherArray (supported ops below), or "
+        ".decrypt() on the data owner's side.",
+    },
+    "E-CUSTODY": {
+        "kind": "design",
+        "why": "decryption requires the secret key, and this context holds "
+        "only public evaluation keys. That's the point.",
+        "do": "save the encrypted result and return it to the data owner — "
+        'only their context (e.g. pdpg.activate("controller.key")) can '
+        "decrypt.",
+    },
+    "E-INDEX": {
+        "kind": "design",
+        "why": "row selection would have to move or mask individual slots "
+        "inside a packed ciphertext, and boolean masks would need readable "
+        "comparisons.",
+        "do": "select whole columns instead — X[:, j] or X[:, [i, k]] — or "
+        "return the array to the data owner for row-level work.",
+    },
+    "E-ORDER": {
+        "kind": "design",
+        "why": "with the plaintext on the left, numpy leads the "
+        "computation, and pypdpg's column packing cannot serve the "
+        "transposed product.",
+        "do": "reorder so the encrypted array comes first: X @ w instead "
+        "of w @ X.",
+    },
 }
 
 # numpy op name -> catalog code. Anything unlisted falls back to
@@ -116,14 +148,23 @@ _OP_SYMBOL = {
 
 
 def make(code: str, headline: str) -> EncryptedOperationError:
-    why, do = _CATALOG[code]
-    message = f"{headline}\nWhy: {why}\nDo instead: {do}\n{_SUPPORTED}"
-    return EncryptedOperationError(code, message)
+    entry = _CATALOG[code]
+    lines = [headline, f"Why: {entry['why']}", f"Do instead: {entry['do']}"]
+    if "roadmap" in entry:
+        lines.append(f"Backend roadmap: {entry['roadmap']}")
+    lines.append(_SUPPORTED)
+    return EncryptedOperationError(code, "\n".join(lines))
 
 
 def for_numpy(name: str) -> EncryptedOperationError:
     """Teaching error for a numpy ufunc/function hitting ciphertext."""
     code = _OP_TO_CODE.get(name, "E-UNSUPPORTED")
     symbol = f" ({_OP_SYMBOL[name]})" if name in _OP_SYMBOL else ""
-    headline = f"np.{name}{symbol} is impossible on CKKS ciphertexts."
+    if _CATALOG[code]["kind"] == "backend":
+        headline = (
+            f"np.{name}{symbol} is not supported by the current backend "
+            f"({CURRENT_BACKEND})."
+        )
+    else:
+        headline = f"np.{name}{symbol} is impossible on encrypted arrays — by design."
     return make(code, headline)

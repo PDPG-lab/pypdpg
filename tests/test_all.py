@@ -309,8 +309,22 @@ def test_error_message_format(encX):
     with pytest.raises(EncryptedOperationError) as excinfo:
         encX > 0
     message = str(excinfo.value)
-    assert message.startswith("np.greater (>) is impossible on CKKS ciphertexts.")
+    assert message.startswith(
+        "np.greater (>) is not supported by the current backend (CKKS)."
+    )
+    assert "Backend roadmap:" in message
     assert "Supported here:" in message
+
+
+def test_by_design_errors_never_blame_the_backend(encX):
+    # reading plaintext is impossible under any backend — the message
+    # must say "by design", not point at CKKS
+    for attempt in (lambda: bool(encX), lambda: np.asarray(encX)):
+        with pytest.raises(EncryptedOperationError) as excinfo:
+            attempt()
+        message = str(excinfo.value)
+        assert "current backend" not in message
+        assert "Backend roadmap:" not in message
 
 
 def test_depth_exhausted_teaches(ctx):

@@ -94,16 +94,22 @@ key — are excluded by the security model rather than by the roadmap.
 
 ## Error messages
 
-Unsupported operations raise `EncryptedOperationError` with an explanation
-and an alternative, instead of a backend stack trace:
+Refusals raise `EncryptedOperationError` with an explanation and an
+alternative, instead of a backend stack trace — and they are backend-aware.
+Backend-limited operations name the current backend and carry a roadmap
+line; by-design operations (anything that would hand this party a
+plaintext) say so and blame no backend:
 
 ```
 >>> X > 600
-EncryptedOperationError: np.greater (>) is impossible on CKKS ciphertexts.
-Why: comparing requires reading the value — the party running this code
-holds no secret key. That's the point.
+EncryptedOperationError: np.greater (>) is not supported by the current backend (CKKS).
+Why: the current backend cannot evaluate comparisons at all — and even on a
+comparison-capable backend the result stays encrypted; reading the verdict
+needs the key. That's the point.
 Do instead: return the encrypted result to the data owner for the decision,
 or soft-threshold with pdpg.approx.sigmoid(x).
+Backend roadmap: TFHE-class backends compute comparisons with encrypted
+results; workload code won't change.
 Supported here: + - * @ dot sum mean square / scalar, pdpg.approx.sigmoid
 ```
 

@@ -53,8 +53,12 @@ why row indexing raises a teaching error instead.
 Anything not routed raises an `EncryptedOperationError` from a catalog keyed
 by failure class (`E-COMPARE`, `E-TRANSCEND`, `E-DIV`, `E-COERCE`, `E-INDEX`,
 `E-ORDER`, `E-CUSTODY`, `E-DEPTH`), each with a *why* and a *do instead*.
-`E-DEPTH` is a translation: TenSEAL's `scale out of bounds` becomes
-"multiplicative depth (4) exhausted — chain fewer multiplications."
+Every entry is flagged **backend-limited** (the message names the current
+backend and carries a "Backend roadmap:" line — comparisons, division,
+transcendentals, depth) or **by-design** (impossible under any backend
+because it would hand this party a plaintext — coercion, custody, and
+friends). `E-DEPTH` is a translation: TenSEAL's `scale out of bounds`
+becomes "exceeded the multiplicative depth (4) of the current backend."
 
 Leak-proofing details: `__array__` raises (numpy cannot silently materialize
 plaintext), `__repr__` shows shape and key custody but never slot values,

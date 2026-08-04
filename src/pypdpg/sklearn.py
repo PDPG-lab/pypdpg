@@ -75,9 +75,9 @@ class _EncryptedClassifier:
 
     def predict(self, X):
         raise errors.make(
-            "E-COMPARE",
-            "predict() — hard class labels are impossible on CKKS "
-            "ciphertexts.",
+            "E-COERCE",
+            "predict() — hard class labels are a plaintext decision, "
+            "impossible on encrypted arrays by design.",
         )
 
 
@@ -113,16 +113,17 @@ class _EncryptedKMeans:
     def transform(self, X):
         raise errors.make(
             "E-TRANSCEND",
-            "KMeans.transform() takes a square root — impossible on CKKS "
-            "ciphertexts. Use .transform_squared(): same centroid ranking; "
-            "take the square root after decryption.",
+            "KMeans.transform() takes a square root — not supported by the "
+            f"current backend ({errors.CURRENT_BACKEND}). Use "
+            ".transform_squared(): same centroid ranking; take the square "
+            "root after decryption.",
         )
 
     def predict(self, X):
         raise errors.make(
             "E-COMPARE",
             "KMeans.predict() — choosing the nearest centroid needs argmin, "
-            "impossible on CKKS ciphertexts.",
+            f"not supported by the current backend ({errors.CURRENT_BACKEND}).",
         )
 
 
