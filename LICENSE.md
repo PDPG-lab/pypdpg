@@ -45,9 +45,10 @@ You are a **Qualified User** if at least one of the following applies:
    engaged in commercial activity qualify under clause 5, not this one.)
 5. **Small and mid-size organizations.** You are any other organization whose
    **Total Revenue** in the most recently completed twelve-month financial
-   period did not exceed **THB 500,000,000** or **USD 15,000,000** (or the
-   equivalent in other currencies), whichever applies to you. If either
-   threshold is exceeded, you are not a Qualified User under this clause.
+   period did not exceed:
+   - **THB 50,000,000**, if you are an entity registered in Thailand; or
+   - **USD 1,000,000**, or the equivalent in other currencies, in all other
+     cases.
 6. **Evaluation.** You are any organization evaluating the software for a
    period of up to 30 days, without using it in production.
 

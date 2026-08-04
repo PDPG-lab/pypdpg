@@ -104,6 +104,7 @@ neither should you.
 this so that privacy-preserving computation becomes ordinary — which means it
 must be free for the people protecting the public. It is free for individuals,
 education, research, non-profits, government and public-sector bodies, and any
-organization under **THB 500M / USD 15M** annual revenue. Above that line, you're the reason we can afford to
-keep it free: [get in touch](https://github.com/PDPG-lab) for an enterprise
+organization under **THB 50M** (Thai-registered) or **USD 1M** (elsewhere)
+annual revenue. Above that line, you're the reason we can afford to keep it
+free: [get in touch](https://github.com/PDPG-lab) for an enterprise
 license. (Not an OSI-approved open-source license, and we don't claim it is.)
