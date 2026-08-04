@@ -4,6 +4,8 @@
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License: PDPG Community](https://img.shields.io/badge/license-PDPG%20Community-blueviolet)
 
+🇹🇭 [อ่านภาษาไทย](README.th.md)
+
 Run numpy code on homomorphically encrypted arrays. The data controller
 encrypts and keeps the secret key; the data processor computes on the
 ciphertext using ordinary numpy operations; the controller decrypts the
