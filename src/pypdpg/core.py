@@ -151,6 +151,96 @@ class CipherArray:
             return self._binary(1.0 / np.asarray(other, dtype=np.float64), "mul")
         return NotImplemented
 
+    # --- linalg & stats ---
+
+    def _matmul_plain(self, other):
+        if isinstance(other, CipherArray):
+            raise errors.make(
+                "E-UNSUPPORTED",
+                "np.matmul (@) between two encrypted arrays is impossible "
+                "on CKKS ciphertexts here.",
+            )
+        if not isinstance(other, (list, tuple, np.ndarray)):
+            return NotImplemented
+        if self._packing != "slots":
+            raise ValueError("matmul on an already-reduced CipherArray is not supported.")
+        w = np.asarray(other, dtype=np.float64)
+        if self.ndim == 1:
+            (n,) = self._shape
+            if w.shape != (n,):
+                raise ValueError(f"matmul shape mismatch: {self._shape} @ {w.shape}")
+            return CipherArray([self._vectors[0].dot(w.tolist())], (), "scalars", self._ctx)
+        n, d = self._shape
+        if w.shape == (d,):
+            out = self._vectors[0] * float(w[0])
+            for j in range(1, d):
+                out = out + self._vectors[j] * float(w[j])
+            return CipherArray([out], (n,), "slots", self._ctx)
+        if w.ndim == 2 and w.shape[0] == d:
+            cols = []
+            for c in range(w.shape[1]):
+                acc = self._vectors[0] * float(w[0, c])
+                for j in range(1, d):
+                    acc = acc + self._vectors[j] * float(w[j, c])
+                cols.append(acc)
+            return CipherArray(cols, (n, w.shape[1]), "slots", self._ctx)
+        raise ValueError(f"matmul shape mismatch: {self._shape} @ {w.shape}")
+
+    def square(self) -> "CipherArray":
+        return self._new([v.square() for v in self._vectors])
+
+    def _polyval(self, coeffs) -> "CipherArray":
+        """Evaluate a polynomial (lowest-degree coefficient first)."""
+        return self._new([v.polyval(list(coeffs)) for v in self._vectors])
+
+    def sum(self, axis=None) -> "CipherArray":
+        if self._packing != "slots":
+            raise ValueError("sum() on an already-reduced CipherArray is not supported.")
+        if axis not in (None, 0):
+            raise ValueError(f"axis={axis} is not supported; use axis=0 or axis=None.")
+        col_sums = [v.sum() for v in self._vectors]
+        if self.ndim == 1 or axis is None:
+            total = col_sums[0]
+            for v in col_sums[1:]:
+                total = total + v
+            return CipherArray([total], (), "scalars", self._ctx)
+        return CipherArray(col_sums, (self._shape[1],), "scalars", self._ctx)
+
+    def mean(self, axis=None) -> "CipherArray":
+        count = self._shape[0] if axis == 0 else int(np.prod(self._shape))
+        return self.sum(axis=axis) * (1.0 / count)
+
+    # --- column slicing ---
+
+    def __getitem__(self, key):
+        if (
+            self._packing == "slots"
+            and self.ndim == 2
+            and isinstance(key, tuple)
+            and len(key) == 2
+            and isinstance(key[0], slice)
+            and key[0] == slice(None)
+        ):
+            n, d = self._shape
+            csel = key[1]
+            if isinstance(csel, (bool, np.bool_)):
+                pass  # fall through to the teaching error
+            elif isinstance(csel, (int, np.integer)):
+                return CipherArray([self._vectors[csel]], (n,), "slots", self._ctx)
+            elif isinstance(csel, slice):
+                vecs = self._vectors[csel]
+                return CipherArray(vecs, (n, len(vecs)), "slots", self._ctx)
+            elif isinstance(csel, (list, tuple, np.ndarray)):
+                idx = np.asarray(csel)
+                if idx.dtype != bool:
+                    vecs = [self._vectors[int(i)] for i in idx]
+                    return CipherArray(vecs, (n, len(vecs)), "slots", self._ctx)
+        raise errors.make(
+            "E-INDEX",
+            f"indexing a CipherArray with {key!r} is impossible on CKKS "
+            "ciphertexts (columns only).",
+        )
+
     # --- operator dunders (used when numpy isn't on the left) ---
 
     def __add__(self, other):
@@ -178,6 +268,30 @@ class CipherArray:
     def __neg__(self):
         return self._new([v.neg() for v in self._vectors])
 
+    def __matmul__(self, other):
+        return self._matmul_plain(other)
+
+    def __rmatmul__(self, other):
+        raise errors.make(
+            "E-ORDER",
+            "np.matmul (@) with the plaintext on the left of a CipherArray "
+            "is impossible on CKKS ciphertexts.",
+        )
+
+    def __pow__(self, n):
+        if isinstance(n, bool) or not isinstance(n, (int, np.integer)) or n < 1:
+            raise errors.for_numpy("power")
+        # square-and-multiply; each squaring or multiply costs one depth level
+        e = int(n)
+        base, result = self, None
+        while e:
+            if e & 1:
+                result = base if result is None else result * base
+            e >>= 1
+            if e:
+                base = base.square()
+        return result
+
     # --- numpy dispatch ---
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
@@ -198,7 +312,29 @@ class CipherArray:
             raise errors.for_numpy("true_divide")
         if name == "negative":
             return -self
+        if name == "square":
+            return self.square()
+        if name == "matmul":
+            a, b = inputs
+            if a is self:
+                return self._matmul_plain(b)
+            return self.__rmatmul__(a)
+        if name == "power":
+            a, b = inputs
+            if a is self:
+                return self.__pow__(b)
+            raise errors.for_numpy("power")
         raise errors.for_numpy(name)
+
+    def __array_function__(self, func, types, args, kwargs):
+        if func in (np.dot, np.matmul):
+            if args and args[0] is self:
+                return self._matmul_plain(args[1])
+            return self.__rmatmul__(args[0])
+        if func in (np.sum, np.mean):
+            axis = kwargs.get("axis", args[1] if len(args) > 1 else None)
+            return self.sum(axis=axis) if func is np.sum else self.mean(axis=axis)
+        raise errors.for_numpy(getattr(func, "__name__", str(func)))
 
 
 def encrypt(arr, ctx: Context | None = None) -> CipherArray:

@@ -183,6 +183,76 @@ def test_mismatched_context_rejected(ctx):
         a + b
 
 
+# ------------------------------------------------------------ linalg & stats
+
+def test_matmul_vector(ctx):
+    oracle(ctx, X_PLAIN, lambda a: a @ W_VEC)
+
+
+def test_matmul_matrix(ctx):
+    oracle(ctx, X_PLAIN, lambda a: a @ W_MAT)
+
+
+def test_np_dot(ctx):
+    oracle(ctx, X_PLAIN, lambda a: np.dot(a, W_VEC))
+
+
+def test_np_matmul(ctx):
+    oracle(ctx, X_PLAIN, lambda a: np.matmul(a, W_MAT))
+
+
+def test_dot_1d(ctx):
+    oracle(ctx, X1D_PLAIN, lambda a: a @ X1D_PLAIN)
+
+
+def test_sum_axis0(ctx):
+    oracle(ctx, X_PLAIN, lambda a: a.sum(axis=0))
+
+
+def test_np_sum_all(ctx):
+    oracle(ctx, X_PLAIN, lambda a: np.sum(a))
+
+
+def test_mean_axis0(ctx):
+    oracle(ctx, X_PLAIN, lambda a: a.mean(axis=0))
+
+
+def test_np_mean_axis0(ctx):
+    oracle(ctx, X_PLAIN, lambda a: np.mean(a, axis=0))
+
+
+def test_np_square(ctx):
+    oracle(ctx, X_PLAIN, lambda a: np.square(a))
+
+
+def test_pow_2(ctx):
+    oracle(ctx, X1D_PLAIN, lambda a: a**2)
+
+
+def test_pow_3(ctx):
+    oracle(ctx, X1D_PLAIN, lambda a: a**3)
+
+
+def test_sigmoid(ctx):
+    enc = pdpg.approx.sigmoid(pdpg.encrypt(X1D_PLAIN, ctx))
+    true = 1.0 / (1.0 + np.exp(-X1D_PLAIN))
+    assert np.allclose(enc.decrypt(), true, atol=1e-1)
+
+
+def test_slice_single_column(ctx):
+    oracle(ctx, X_PLAIN, lambda a: a[:, 1])
+
+
+def test_slice_column_list(ctx):
+    oracle(ctx, X_PLAIN, lambda a: a[:, [0, 2]])
+
+
+def test_sliced_column_still_computes(ctx):
+    enc = pdpg.encrypt(X_PLAIN, ctx)
+    got = (enc[:, 1] * 2 + 1).decrypt()
+    assert np.allclose(got, X_PLAIN[:, 1] * 2 + 1, atol=ATOL)
+
+
 # ------------------------------------------------------------------ custody
 
 def test_decrypt_without_secret_key_raises(pub_ctx):

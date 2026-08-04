@@ -32,6 +32,24 @@ _CATALOG = {
         "multiply by a plain reciprocal (x * (1/c)), or return the "
         "denominator to the data owner to decrypt.",
     ),
+    "E-TRANSCEND": (
+        "only polynomial functions (adds and multiplies) exist under FHE — "
+        "transcendental functions have no homomorphic circuit.",
+        "use pdpg.approx.sigmoid(x), or fit your own low-degree polynomial "
+        "to the function over your input range.",
+    ),
+    "E-ORDER": (
+        "with the plaintext on the left, numpy leads the computation, and "
+        "pypdpg's column packing cannot serve the transposed product.",
+        "reorder so the encrypted array comes first: X @ w instead of w @ X.",
+    ),
+    "E-INDEX": (
+        "row selection would have to move or mask individual slots inside a "
+        "packed ciphertext, and boolean masks would need comparisons — "
+        "impossible without the secret key.",
+        "select whole columns instead — X[:, j] or X[:, [i, k]] — or return "
+        "the array to the data owner for row-level work.",
+    ),
     "E-UNSUPPORTED": (
         "CKKS evaluates additions and multiplications only; this operation "
         "has no homomorphic form here.",
@@ -45,6 +63,7 @@ _CATALOG = {
 _OP_TO_CODE = {
     "true_divide": "E-DIV",
     "divide": "E-DIV",
+    "power": "E-TRANSCEND",
 }
 
 # symbol shown next to the op name when there is an operator spelling
